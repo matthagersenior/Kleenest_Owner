@@ -4,6 +4,8 @@ function client(){return getSupabaseClient();}
 function unwrap<T>(data:T|null,error:{message:string}|null):T{if(error)throw new Error(error.message);if(data==null)throw new Error('Owner control-plane service returned no data.');return data;}
 
 export async function getSession(){const {data,error}=await client().auth.getSession();if(error)throw error;return data.session;}
+export async function getPlatformSnapshot(){const {data,error}=await client().rpc('admin_control_plane_snapshot');return unwrap(data as Record<string,unknown>|null,error);}
+export async function getPlatformHistory(limit=50){const {data,error}=await client().rpc('admin_control_plane_history',{p_limit:limit});return unwrap(data as Record<string,unknown>|null,error);}
 export async function listPendingBusinesses(){const {data,error}=await client().rpc('admin_list_pending_businesses');return unwrap(data??[],error);}
 export async function getBusinessAccess(businessId:string){const {data,error}=await client().rpc('admin_get_business_access',{p_business_id:businessId});return unwrap(data,error);}
 export async function setBusinessAccess(input:{businessId:string;tier:string;fleetEnabled:boolean;enterpriseEnabled:boolean;reason:string}){const {data,error}=await client().rpc('admin_set_business_access',{p_business_id:input.businessId,p_tier:input.tier,p_fleet_enabled:input.fleetEnabled,p_enterprise_enabled:input.enterpriseEnabled,p_reason:input.reason});return unwrap(data,error);}
@@ -20,8 +22,8 @@ export async function getCrudCapabilityCatalog(){const {data,error}=await client
 export async function runCapabilityAudit(source='owner_app'){const {data,error}=await client().rpc('run_capability_audit',{p_source:source});return unwrap(data,error);}
 
 export async function getOwnerControlPlaneBundle(){
- const [pending,classifications,retirement,domainIssues,raw,operational,crud]=await Promise.all([
-  listPendingBusinesses(),getCapabilityClassificationSummary(),getCapabilityRetirementAudit(),getSingleCapabilityDomainIssues(),getRawSchemaCapabilityAudit(),getOperationalCapabilityCatalog(),getCrudCapabilityCatalog()
+ const [snapshot,history,pending,classifications,retirement,domainIssues,raw,operational,crud]=await Promise.all([
+  getPlatformSnapshot(),getPlatformHistory(),listPendingBusinesses(),getCapabilityClassificationSummary(),getCapabilityRetirementAudit(),getSingleCapabilityDomainIssues(),getRawSchemaCapabilityAudit(),getOperationalCapabilityCatalog(),getCrudCapabilityCatalog()
  ]);
- return{pending,classifications,retirement,domainIssues,raw,operational,crud};
+ return{snapshot,history,pending,classifications,retirement,domainIssues,raw,operational,crud};
 }
