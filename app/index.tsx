@@ -1,0 +1,24 @@
+import { useCallback,useEffect,useState } from 'react';
+import { ActivityIndicator,Pressable,RefreshControl,ScrollView,Text,View } from 'react-native';
+import { getOwnerControlPlaneBundle,getSession,runCapabilityAudit } from '@/services/controlPlane';
+
+type Bundle=Awaited<ReturnType<typeof getOwnerControlPlaneBundle>>;
+function count(value:unknown){if(Array.isArray(value))return value.length;if(value&&typeof value==='object')return Object.keys(value as Record<string,unknown>).length;return 0;}
+
+export default function OwnerControlPlane(){
+ const [bundle,setBundle]=useState<Bundle|null>(null);const [loading,setLoading]=useState(true);const [refreshing,setRefreshing]=useState(false);const [running,setRunning]=useState(false);const [error,setError]=useState<string|null>(null);
+ const load=useCallback(async()=>{const session=await getSession();if(!session)throw new Error('Platform Owner authentication required.');setBundle(await getOwnerControlPlaneBundle());},[]);
+ useEffect(()=>{load().catch(c=>setError(c instanceof Error?c.message:String(c))).finally(()=>setLoading(false));},[load]);
+ async function refresh(){setRefreshing(true);setError(null);try{await load();}catch(c){setError(c instanceof Error?c.message:String(c));}finally{setRefreshing(false);}}
+ async function audit(){setRunning(true);setError(null);try{await runCapabilityAudit();await refresh();}catch(c){setError(c instanceof Error?c.message:String(c));}finally{setRunning(false);}}
+ if(loading)return <View style={{flex:1,justifyContent:'center'}}><ActivityIndicator size="large"/></View>;
+ return <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh}/>} contentContainerStyle={{padding:16,gap:16,paddingBottom:56}}>
+  {error?<View style={{backgroundColor:'#fff0f0',borderRadius:14,padding:12}}><Text style={{color:'#8b2d2d'}}>{error}</Text></View>:null}
+  <View style={{backgroundColor:'#132b21',borderRadius:20,padding:18,gap:7}}><Text style={{color:'#bce4cf',fontSize:12,fontWeight:'800'}}>PRIVATE PLATFORM CONTROL PLANE</Text><Text style={{color:'white',fontSize:24,fontWeight:'800'}}>Kleenest Owner</Text><Text style={{color:'#d8e7df',lineHeight:20}}>Platform-wide administration and capability health. No replicas of Consumer, Business or Fleet applications.</Text></View>
+  <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}><Metric label="Pending businesses" value={count(bundle?.pending)}/><Metric label="Capability groups" value={count(bundle?.classifications)}/><Metric label="Retirement rows" value={count(bundle?.retirement)}/><Metric label="Domain issues" value={count(bundle?.domainIssues)}/></View>
+  <Pressable disabled={running} onPress={audit} style={{alignSelf:'flex-start',backgroundColor:'#173f2d',borderRadius:999,paddingHorizontal:15,paddingVertical:10,opacity:running?0.5:1}}><Text style={{color:'white',fontWeight:'800'}}>{running?'Running audit…':'Run capability audit'}</Text></Pressable>
+  <Section title="Capability classification" value={bundle?.classifications}/><Section title="Single-capability domain issues" value={bundle?.domainIssues}/><Section title="Retirement audit" value={bundle?.retirement}/><Section title="Operational capability catalog" value={bundle?.operational}/><Section title="CRUD capability catalog" value={bundle?.crud}/><Section title="Raw schema capability audit" value={bundle?.raw}/><Section title="Pending business administration" value={bundle?.pending}/>
+ </ScrollView>;
+}
+function Metric({label,value}:{label:string;value:number}){return <View style={{backgroundColor:'white',borderRadius:16,padding:14,minWidth:125,flexGrow:1}}><Text style={{color:'#66766e',fontSize:12,fontWeight:'700'}}>{label}</Text><Text style={{fontSize:24,fontWeight:'800'}}>{value}</Text></View>}
+function Section({title,value}:{title:string;value:unknown}){return <View style={{backgroundColor:'white',borderRadius:16,padding:14,gap:5}}><Text style={{fontSize:17,fontWeight:'800'}}>{title}</Text><Text selectable style={{color:'#5f6f66',lineHeight:19}}>{JSON.stringify(value??{},null,2)}</Text></View>}
