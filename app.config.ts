@@ -4,7 +4,7 @@ const EAS_PROJECT_ID = '22a65aa3-c615-4c4f-a34d-084babc28fd7';
 
 const config: ExpoConfig = {
   name: 'Kleenest Owner',
-  slug: 'kleenest-owner',
+  slug: 'kleenest-consumer',
   version: '0.1.0',
   runtimeVersion: 'kleenest-owner-0.1.0',
   updates: {
