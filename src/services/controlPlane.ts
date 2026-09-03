@@ -2,6 +2,8 @@ import { getSupabaseClient } from '@/lib/supabase';
 const client=()=>getSupabaseClient();
 function unwrap<T>(data:T|null,error:{message:string}|null):T{if(error)throw new Error(error.message);if(data==null)throw new Error('Owner control-plane service returned no data.');return data;}
 export async function getSession(){const{data,error}=await client().auth.getSession();if(error)throw error;return data.session;}
+export async function signInOwner(email:string,password:string){const supabase=client();const{data,error}=await supabase.auth.signInWithPassword({email:email.trim(),password});if(error)throw error;const{data:summary,error:summaryError}=await supabase.rpc('get_account_summary');if(summaryError){await supabase.auth.signOut({scope:'local'});throw summaryError;}const profile=(summary as any)?.profile??{};if(!profile.is_platform_owner&&!profile.is_admin&&String(profile.role??'').toLowerCase()!=='admin'){await supabase.auth.signOut({scope:'local'});throw new Error('This account is not authorized for the Kleenest Owner control plane.');}return data.session;}
+export async function signOutOwner(){const{error}=await client().auth.signOut({scope:'local'});if(error)throw error;}
 export async function getPlatformSnapshot(){const{data,error}=await client().rpc('admin_control_plane_snapshot');return unwrap(data as Record<string,unknown>|null,error);}
 export async function getPlatformHistory(limit=50){const{data,error}=await client().rpc('admin_control_plane_history',{p_limit:limit});return unwrap(data as Record<string,unknown>|null,error);}
 export async function listPendingBusinesses(){const{data,error}=await client().rpc('admin_list_pending_businesses');return unwrap(data??[],error);}
