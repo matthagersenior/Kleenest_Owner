@@ -3,6 +3,19 @@ import { useRouter } from 'expo-router';
 import { Pressable,ScrollView,Text,TextInput,View } from 'react-native';
 import { signInOwner } from '@/services/controlPlane';
 
+function messageOf(value:unknown){
+  if(value instanceof Error&&value.message)return value.message;
+  if(value&&typeof value==='object'){
+    const candidate=value as Record<string,unknown>;
+    for(const key of ['message','error_description','details','hint','code']){
+      const text=candidate[key];
+      if(typeof text==='string'&&text.trim())return text;
+    }
+  }
+  if(typeof value==='string'&&value.trim())return value;
+  return 'Owner sign-in could not be completed. Please try again.';
+}
+
 export default function OwnerSignIn(){
   const router=useRouter();
   const[email,setEmail]=useState('');
@@ -10,7 +23,7 @@ export default function OwnerSignIn(){
   const[showPassword,setShowPassword]=useState(false);
   const[busy,setBusy]=useState(false);
   const[error,setError]=useState<string|null>(null);
-  async function signIn(){setBusy(true);setError(null);try{await signInOwner(email,password);router.replace('/')}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}}
+  async function signIn(){setBusy(true);setError(null);try{await signInOwner(email,password);router.replace('/')}catch(c){setError(messageOf(c))}finally{setBusy(false)}}
   return <ScrollView contentContainerStyle={{flexGrow:1,justifyContent:'center',padding:24,backgroundColor:'#f5f8f6'}} keyboardShouldPersistTaps="handled">
     <View style={{gap:14}}>
       <View style={{backgroundColor:'#132b21',borderRadius:20,padding:18,gap:6}}>
