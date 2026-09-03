@@ -59,18 +59,19 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: |
-            set -euo pipefail
+            set -eu
             APK=android/app/build/outputs/apk/release/app-release.apk
             PACKAGE=com.kleenest.owner
             adb wait-for-device
             adb install -r "$APK"
             adb logcat -c
+            adb shell am force-stop "$PACKAGE"
             adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
             sleep 12
             PID="$(adb shell pidof "$PACKAGE" | tr -d '\r' || true)"
             if [ -z "$PID" ]; then
               echo 'Owner APK exited during startup.' >&2
-              adb logcat -d -v brief | tail -n 500 >&2
+              adb logcat -d -v threadtime | tail -n 500 >&2
               exit 1
             fi
             adb shell dumpsys activity activities | grep -F "$PACKAGE" >/dev/null
