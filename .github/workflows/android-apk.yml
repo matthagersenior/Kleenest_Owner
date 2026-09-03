@@ -59,17 +59,21 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: |
+            set -euo pipefail
+            APK=android/app/build/outputs/apk/release/app-release.apk
+            PACKAGE=com.kleenest.owner
             adb wait-for-device
-            adb install -r android/app/build/outputs/apk/release/app-release.apk
+            adb install -r "$APK"
             adb logcat -c
-            adb shell monkey -p com.kleenest.owner -c android.intent.category.LAUNCHER 1
+            adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
             sleep 12
-            if ! adb shell pidof com.kleenest.owner >/dev/null; then
+            PID="$(adb shell pidof "$PACKAGE" | tr -d '\r' || true)"
+            if [ -z "$PID" ]; then
               echo 'Owner APK exited during startup.' >&2
-              adb logcat -d -v brief | tail -n 400 >&2
+              adb logcat -d -v brief | tail -n 500 >&2
               exit 1
             fi
-            adb shell dumpsys activity activities | grep -q 'com.kleenest.owner'
+            adb shell dumpsys activity activities | grep -F "$PACKAGE" >/dev/null
       - name: Stage standalone APK
         run: cp android/app/build/outputs/apk/release/app-release.apk Kleenest-Owner-Standalone.apk
       - uses: actions/upload-artifact@v4
