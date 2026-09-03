@@ -12,11 +12,12 @@ concurrency:
 jobs:
   apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || 'https://ssgesjzdvdsqacdtasje.supabase.co' }}
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_f1rbczgvWKSQy2g9mTDQZg_K9Wv19bL' }}
       NODE_ENV: production
+      CI: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,7 +27,7 @@ jobs:
       - run: npm run audit
       - run: npm run typecheck
       - name: Generate clean Android project
-        run: npx expo prebuild --platform android --clean --non-interactive
+        run: npx expo prebuild --platform android --clean
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -35,10 +36,34 @@ jobs:
       - name: Build standalone release APK with embedded JS bundle
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
-      - name: Stage standalone APK
+      - name: Verify release bundle contract
         run: |
           test -f android/app/build/outputs/apk/release/app-release.apk
-          cp android/app/build/outputs/apk/release/app-release.apk Kleenest-Owner-Standalone.apk
+          unzip -p android/app/build/outputs/apk/release/app-release.apk assets/index.android.bundle > /tmp/owner.bundle
+          test -s /tmp/owner.bundle
+          grep -a -q 'ssgesjzdvdsqacdtasje.supabase.co' /tmp/owner.bundle
+          grep -a -q 'Kleenest Owner sign in' /tmp/owner.bundle
+          ! grep -a -q 'Development Build' /tmp/owner.bundle
+      - name: Boot-test release APK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
+            adb logcat -c
+            adb shell monkey -p com.kleenest.owner -c android.intent.category.LAUNCHER 1
+            sleep 12
+            if ! adb shell pidof com.kleenest.owner >/dev/null; then
+              echo 'Owner APK exited during startup.' >&2
+              adb logcat -d -v brief | tail -n 400 >&2
+              exit 1
+            fi
+            adb shell dumpsys activity activities | grep -q 'com.kleenest.owner'
+      - name: Stage standalone APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk Kleenest-Owner-Standalone.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Kleenest-Owner-Standalone-APK
