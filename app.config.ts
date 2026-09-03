@@ -11,7 +11,7 @@ const config: ExpoConfig = {
   android: { package: 'com.kleenest.owner' },
   web: { output: 'single', bundler: 'metro', name: 'Kleenest Owner', shortName: 'Kleenest Owner' },
   plugins: ['expo-router', 'expo-secure-store'],
-  experiments: { typedRoutes: true },
+  experiments: { typedRoutes: true, baseUrl: '/Kleenest_Owner' },
   extra: { appRole: 'owner', supabaseProjectRef: 'ssgesjzdvdsqacdtasje' },
 };
 
