@@ -37,12 +37,18 @@ jobs:
           npm dedupe
       - run: npm run audit
       - run: npm run typecheck
+      - name: Verify Owner auth gate source
+        run: |
+          grep -q 'getSession' app/_layout.tsx
+          grep -q 'Redirect href="/auth"' app/_layout.tsx
+          grep -q 'Owner Sign In' app/_layout.tsx
+          test -s assets/app-icon.png
       - name: Expo health and production bundle preflight
         run: |
           npx expo-doctor
           rm -rf .preflight
           npx expo config --type public --json > /tmp/owner-expo-config.json
-          node -e "const c=require('/tmp/owner-expo-config.json');if(c.android?.package!=='com.kleenest.owner')process.exit(1);if(c.name!=='Kleenest Owner')process.exit(1)"
+          node -e "const c=require('/tmp/owner-expo-config.json');if(c.android?.package!=='com.kleenest.owner')process.exit(1);if(c.name!=='KleenestOS')process.exit(1);if(c.icon!=='./assets/app-icon.png')process.exit(1)"
           npx expo export --platform android --output-dir .preflight --clear
           test -n "$(find .preflight -type f -print -quit)"
       - name: Generate clean Android native project
@@ -72,7 +78,8 @@ jobs:
           unzip -p android/app/build/outputs/apk/release/app-release.apk assets/index.android.bundle > /tmp/owner.bundle
           test -s /tmp/owner.bundle
           grep -a -q 'ssgesjzdvdsqacdtasje.supabase.co' /tmp/owner.bundle
-          grep -a -q 'Kleenest Owner' /tmp/owner.bundle
+          grep -a -q 'KleenestOS' /tmp/owner.bundle
+          grep -a -q 'Owner Sign In' /tmp/owner.bundle
           ! grep -a -q 'Development Build' /tmp/owner.bundle
           unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -q 'lib/arm64-v8a/libreactnative.so'
           unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -q 'lib/arm64-v8a/libhermesvm.so'
@@ -100,11 +107,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Stage internal candidate
-        run: cp android/app/build/outputs/apk/release/app-release.apk Kleenest-Owner-Candidate.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk KleenestOS-Candidate.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Kleenest-Owner-Internal-Candidate
-          path: Kleenest-Owner-Candidate.apk
+          name: KleenestOS-Internal-Candidate
+          path: KleenestOS-Candidate.apk
           if-no-files-found: error
           retention-days: 1
 
@@ -117,7 +124,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: Kleenest-Owner-Internal-Candidate
+          name: KleenestOS-Internal-Candidate
           path: candidate
       - name: Android 16 ARM64 startup diagnostic gate
         uses: reactivecircus/android-emulator-runner@v2
@@ -127,12 +134,12 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: bash scripts/android-startup-smoke.sh candidate/Kleenest-Owner-Candidate.apk com.kleenest.owner Owner-ARM64
+          script: bash scripts/android-startup-smoke.sh candidate/KleenestOS-Candidate.apk com.kleenest.owner Owner-ARM64
       - name: Upload ARM64 startup diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Kleenest-Owner-ARM64-Startup-Diagnostics
+          name: KleenestOS-ARM64-Startup-Diagnostics
           path: android-startup-logs
           if-no-files-found: ignore
           retention-days: 7
@@ -143,12 +150,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: Kleenest-Owner-Internal-Candidate
+          name: KleenestOS-Internal-Candidate
           path: candidate
-      - run: cp candidate/Kleenest-Owner-Candidate.apk Kleenest-Owner-Standalone.apk
+      - run: cp candidate/KleenestOS-Candidate.apk KleenestOS-Standalone.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Kleenest-Owner-Standalone-APK
-          path: Kleenest-Owner-Standalone.apk
+          name: KleenestOS-Standalone-APK
+          path: KleenestOS-Standalone.apk
           if-no-files-found: error
           retention-days: 30
