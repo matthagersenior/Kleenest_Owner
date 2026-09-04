@@ -4,15 +4,15 @@ import { searchOwnerBusinesses } from './ownerSearch';
 
 export { searchOwnerBusinesses };
 
+function object(value:unknown){return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};}
+function rows(value:unknown){return Array.isArray(value)?value:[];}
+
 export async function getOwnerBusinessDetail(businessId:string){
-  const client=getSupabaseClient();
-  const [access,members,locations]=await Promise.all([
-    client.rpc('admin_get_business_access',{p_business_id:businessId}),
-    client.rpc('admin_list_business_members',{p_business_id:businessId}),
-    client.from('locations').select('id,name,address,city,state,verification_status,business_id,claimed_business_id').or(`business_id.eq.${businessId},claimed_business_id.eq.${businessId}`).order('name').limit(200)
-  ]);
-  for(const result of [access,members,locations])if(result.error)throw new Error(result.error.message);
-  return {access:access.data,members:Array.isArray(members.data)?members.data:[],locations:locations.data??[]};
+  await requirePlatformOwner();
+  const {data,error}=await getSupabaseClient().rpc('admin_business_detail',{p_business_id:businessId});
+  if(error)throw new Error(error.message);
+  const value=object(data);
+  return {business:object(value.business),access:object(value.access),members:rows(value.members),locations:rows(value.locations),claims:rows(value.claims)};
 }
 
 export async function setOwnerBusinessAccess(input:{businessId:string;tier:string;fleetEnabled:boolean;enterpriseEnabled:boolean;reason:string}){
@@ -22,6 +22,18 @@ export async function setOwnerBusinessAccess(input:{businessId:string;tier:strin
   });
   if(error)throw new Error(error.message);
   return data;
+}
+
+export async function setOwnerBusinessVerification(businessId:string,status:string){
+  await requirePlatformOwner();
+  const {data,error}=await getSupabaseClient().rpc('admin_set_business_verification',{p_business_id:businessId,p_status:status});
+  if(error)throw new Error(error.message);return data;
+}
+
+export async function resolveOwnerLocationClaim(claimId:string,status:'approved'|'rejected'){
+  await requirePlatformOwner();
+  const {data,error}=await getSupabaseClient().rpc('admin_resolve_location_claim',{p_claim_id:claimId,p_status:status});
+  if(error)throw new Error(error.message);return data;
 }
 
 export async function assignOwnerBusinessMember(businessId:string,userId:string,role:string){
