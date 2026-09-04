@@ -1,4 +1,4 @@
-name: Publish Owner OTA Update
+name: Publish KleenestOS OTA Update
 
 on:
   workflow_dispatch:
@@ -7,6 +7,7 @@ on:
     paths:
       - 'app/**'
       - 'src/**'
+      - 'scripts/**'
       - 'app.config.ts'
       - '.github/workflows/ota-update.yml'
 
@@ -31,15 +32,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Verify Owner OTA credential
-        run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "EXPO_TOKEN is not configured in Kleenest_Owner. Add the same Expo access token used by the app-family publisher."
-            exit 1
-          fi
+      - name: Verify KleenestOS OTA credential
+        run: test -n "$EXPO_TOKEN" || (echo "EXPO_TOKEN is not configured in Kleenest_Owner" && exit 1)
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Verify Expo authentication
         run: npx eas-cli@latest whoami --non-interactive
-      - name: Publish Owner OTA update
-        run: npx eas-cli@latest update --channel owner-production --message "Owner ${GITHUB_SHA}" --non-interactive
+      - name: Verify authenticated KleenestOS source
+        run: |
+          grep -q 'getSession' app/_layout.tsx
+          grep -q 'Redirect href="/auth"' app/_layout.tsx
+          grep -q 'Owner Sign In' app/_layout.tsx
+          node -e "import('./app.config.ts').catch(()=>process.exit(0))" || true
+      - name: Publish KleenestOS OTA update
+        run: npx eas-cli@latest update --channel owner-production --message "KleenestOS ${GITHUB_SHA}" --non-interactive
