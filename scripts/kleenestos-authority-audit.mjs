@@ -40,7 +40,7 @@ for(const token of ['admin_authorization_v1','getOwnerAuthorization','requirePla
 for(const token of ['admin_user_search','searchOwnerUsers'])must((search+people).includes(token),`People search missing ${token}`);
 for(const token of ['admin_set_user_access','setOwnerUserAccess'])must(people.includes(token),`People mutation missing ${token}`);
 for(const token of ['searchOwnerBusinesses','admin_set_business_access','setOwnerBusinessAccess'])must(businesses.includes(token),`Business authority missing ${token}`);
-for(const token of ['progression_events','location_discoveries','getOwnerEconomySnapshot'])must(economy.includes(token),`Economy service missing live authority ${token}`);
+for(const token of ['progression_events_v2','discovery_contributions','getOwnerEconomySnapshot'])must(economy.includes(token),`Economy service missing live authority ${token}`);
 for(const token of ['admin_list_review_reports','admin_resolve_review_report','getOwnerModerationQueues'])must(moderation.includes(token),`Moderation service missing ${token}`);
 for(const token of ['admin_national_ingestion_status','admin_set_national_ingestion_resume_authorization','getOwnerOperationsSnapshot'])must(operations.includes(token),`Operations service missing ${token}`);
 for(const token of ['COMMAND CENTER','People & Access','Businesses & Network','Economy','Trust & Moderation','Operations'])must(home.includes(token),`Command Center missing ${token}`);
