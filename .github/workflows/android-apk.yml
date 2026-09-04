@@ -48,11 +48,23 @@ jobs:
           npx expo-doctor
           rm -rf .preflight
           npx expo config --type public --json > /tmp/owner-expo-config.json
-          node -e "const c=require('/tmp/owner-expo-config.json');if(c.android?.package!=='com.kleenest.owner')process.exit(1);if(c.name!=='KleenestOS')process.exit(1);if(c.icon!=='./assets/app-icon.png')process.exit(1)"
+          node -e "const c=require('/tmp/owner-expo-config.json');if(c.android?.package!=='com.kleenest.owner')process.exit(1);if(c.name!=='KleenestOS')process.exit(1);if(c.icon!=='./assets/app-icon.png'||c.android?.icon!=='./assets/app-icon.png')process.exit(1)"
           npx expo export --platform android --output-dir .preflight --clear
           test -n "$(find .preflight -type f -print -quit)"
       - name: Generate clean Android native project
         run: npx expo prebuild --platform android --clean
+      - name: Apply supplied Owner launcher artwork
+        run: |
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            dir="android/app/src/main/res/mipmap-$density"
+            mkdir -p "$dir"
+            rm -f "$dir"/ic_launcher.png "$dir"/ic_launcher.webp "$dir"/ic_launcher_round.png "$dir"/ic_launcher_round.webp "$dir"/ic_launcher_foreground.png "$dir"/ic_launcher_foreground.webp
+            cp assets/app-icon.png "$dir/ic_launcher.png"
+            cp assets/app-icon.png "$dir/ic_launcher_round.png"
+          done
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          test -s android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
       - name: Pre-package native and manifest diagnostics
         working-directory: android
         run: |
