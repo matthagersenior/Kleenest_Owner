@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "audit": "node scripts/owner-parity-audit.mjs"
+    "audit": "node scripts/owner-parity-audit.mjs && node scripts/kleenestos-authority-audit.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
