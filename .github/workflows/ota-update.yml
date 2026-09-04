@@ -7,6 +7,8 @@ on:
     paths:
       - 'app/**'
       - 'src/**'
+      - 'app.config.ts'
+      - '.github/workflows/ota-update.yml'
 
 permissions:
   contents: read
@@ -29,11 +31,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Verify Owner OTA credential
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN is not configured in Kleenest_Owner. Add the same Expo access token used by the app-family publisher."
+            exit 1
+          fi
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Ensure Owner OTA channel exists
-        run: |
-          npx eas-cli@latest channel:create owner-production --branch owner-production --non-interactive || \
-          npx eas-cli@latest channel:edit owner-production --branch owner-production --non-interactive
+      - name: Verify Expo authentication
+        run: npx eas-cli@latest whoami --non-interactive
       - name: Publish Owner OTA update
         run: npx eas-cli@latest update --channel owner-production --message "Owner ${GITHUB_SHA}" --non-interactive
