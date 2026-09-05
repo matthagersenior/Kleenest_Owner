@@ -1,10 +1,10 @@
 import type { ExpoConfig } from 'expo/config';
 
-const EAS_PROJECT_ID = '22a65aa3-c615-4c4f-a34d-084babc28fd7';
+const EAS_PROJECT_ID = '9b5527b5-c8b1-47c1-a961-3e2d5e549a62';
 
 const config: ExpoConfig = {
   name: 'KleenestOS',
-  slug: 'kleenest-consumer',
+  slug: 'kleenest-owner',
   version: '0.1.0',
   runtimeVersion: 'kleenest-owner-0.1.0',
   icon: './assets/app-icon.png',
