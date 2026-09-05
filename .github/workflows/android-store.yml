@@ -1,0 +1,66 @@
+name: Build Owner Play AAB
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/android-store.yml'
+      - 'app/**'
+      - 'src/**'
+      - 'components/**'
+      - 'services/**'
+      - 'app.config.ts'
+      - 'eas.json'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+  store-aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_PROJECT_ID: 9b5527b5-c8b1-47c1-a961-3e2d5e549a62
+      EXPO_PUBLIC_OTA_CHANNEL: owner-production
+      EXPO_PUBLIC_SUPABASE_URL: https://ssgesjzdvdsqacdtasje.supabase.co
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_f1rbczgvWKSQy2g9mTDQZg_K9Wv19bL
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Require Expo automation token
+        run: test -n "$EXPO_TOKEN"
+      - name: Install and verify Owner
+        run: |
+          npm install --no-audit --no-fund
+          npm run audit
+          npm run typecheck
+          npx eas-cli@latest whoami
+          npx expo config --type public > /tmp/kleenest-owner-config.txt
+          grep -q "$EAS_PROJECT_ID" /tmp/kleenest-owner-config.txt
+          grep -q 'com.kleenest.owner' /tmp/kleenest-owner-config.txt
+      - name: Build signed Play bundle locally
+        run: |
+          set -euo pipefail
+          npx eas-cli@latest build --platform android --profile production --non-interactive --local --output "$GITHUB_WORKSPACE/Kleenest-Owner-production.aab"
+          test -s Kleenest-Owner-production.aab
+          unzip -t Kleenest-Owner-production.aab >/dev/null
+          sha256sum Kleenest-Owner-production.aab | tee Kleenest-Owner-production.aab.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kleenest-Owner-Play-AAB-${{ github.run_id }}
+          path: |
+            Kleenest-Owner-production.aab
+            Kleenest-Owner-production.aab.sha256
+          if-no-files-found: error
+          retention-days: 30
