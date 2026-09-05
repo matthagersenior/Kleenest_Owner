@@ -14,6 +14,6 @@ export async function getOwnerAuthorization():Promise<OwnerAuthorization>{
 
 export async function requirePlatformOwner(){
   const authorization=await getOwnerAuthorization();
-  if(!authorization.is_platform_owner)throw new Error('Platform owner authority is required for this command.');
+  if(!authorization.authorized)throw new Error('Owner control-plane authority is required for this command.');
   return authorization;
 }
