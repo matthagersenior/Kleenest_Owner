@@ -9,6 +9,7 @@ on:
       - 'src/**'
       - 'scripts/**'
       - 'app.config.ts'
+      - 'eas.json'
       - '.github/workflows/ota-update.yml'
 
 permissions:
@@ -21,9 +22,11 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_PROJECT_ID: 9b5527b5-c8b1-47c1-a961-3e2d5e549a62
+      EXPO_PUBLIC_OTA_CHANNEL: owner-production
       EXPO_PUBLIC_SUPABASE_URL: https://ssgesjzdvdsqacdtasje.supabase.co
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_f1rbczgvWKSQy2g9mTDQZg_K9Wv19bL
     steps:
@@ -38,11 +41,30 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Verify Expo authentication
         run: npx eas-cli@latest whoami --non-interactive
-      - name: Verify authenticated KleenestOS source
+      - name: Verify dedicated Owner Expo identity
         run: |
-          grep -q 'getSession' app/_layout.tsx
-          grep -q 'Redirect href="/auth"' app/_layout.tsx
-          grep -q 'Owner Sign In' app/_layout.tsx
-          node -e "import('./app.config.ts').catch(()=>process.exit(0))" || true
+          npx expo config --type public --json > expo-config.json
+          node <<'NODE'
+          const fs=require('fs');
+          const c=JSON.parse(fs.readFileSync('expo-config.json','utf8'));
+          const project='9b5527b5-c8b1-47c1-a961-3e2d5e549a62';
+          const channel='owner-production';
+          const failures=[];
+          if(c.slug!=='kleenest-owner')failures.push(`slug=${c.slug}`);
+          if(c.extra?.eas?.projectId!==project)failures.push(`projectId=${c.extra?.eas?.projectId}`);
+          if(c.updates?.url!==`https://u.expo.dev/${project}`)failures.push(`updates.url=${c.updates?.url}`);
+          if(c.updates?.requestHeaders?.['expo-channel-name']!==channel)failures.push(`channel=${c.updates?.requestHeaders?.['expo-channel-name']}`);
+          if(c.runtimeVersion!=='kleenest-owner-0.1.0')failures.push(`runtimeVersion=${c.runtimeVersion}`);
+          if(failures.length)throw new Error(`Owner Expo identity mismatch: ${failures.join(', ')}`);
+          console.log('Owner Expo identity and OTA channel verified.');
+          NODE
+      - name: Verify Owner release source
+        run: |
+          npm run audit
+          npm run typecheck
       - name: Publish KleenestOS OTA update
         run: npx eas-cli@latest update --channel owner-production --message "KleenestOS ${GITHUB_SHA}" --non-interactive
+      - name: Verify Owner OTA is discoverable
+        run: |
+          npx eas-cli@latest update:list --channel owner-production --limit 1 --json --non-interactive > ota-latest.json
+          grep -q "$GITHUB_SHA" ota-latest.json
