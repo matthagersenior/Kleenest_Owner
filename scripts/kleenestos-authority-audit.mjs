@@ -40,13 +40,13 @@ for(const token of ['admin_authorization_v1','getOwnerAuthorization','requirePla
 for(const token of ['admin_user_search','searchOwnerUsers'])must((search+people).includes(token),`People search missing ${token}`);
 for(const token of ['admin_set_user_access','setOwnerUserAccess'])must(people.includes(token),`People mutation missing ${token}`);
 for(const token of ['searchOwnerBusinesses','admin_set_business_access','setOwnerBusinessAccess'])must(businesses.includes(token),`Business authority missing ${token}`);
-for(const token of ['owner_progression_platform_snapshot','owner_progression_xp_action_catalog','owner_update_progression_xp_action','getOwnerEconomySnapshot'])must(economy.includes(token),`Economy service missing live authority ${token}`);
+for(const token of ['owner_progression_platform_snapshot','owner_progression_xp_action_catalog','owner_update_progression_xp_action','owner_progression_objective_list','owner_progression_objective_upsert','owner_progression_objective_set_status','owner_progression_objective_delete','owner_progression_supply_status','getOwnerEconomySnapshot','listOwnerProgressionObjectives','saveOwnerProgressionObjective'])must(economy.includes(token),`Economy service missing live authority ${token}`);
 for(const token of ['admin_list_review_reports','admin_resolve_review_report','getOwnerModerationQueues'])must(moderation.includes(token),`Moderation service missing ${token}`);
 for(const token of ['admin_national_ingestion_status','admin_set_national_ingestion_resume_authorization','getOwnerOperationsSnapshot'])must(operations.includes(token),`Operations service missing ${token}`);
 for(const token of ['COMMAND CENTER','People & Access','Businesses & Network','Economy','Trust & Moderation','Operations'])must(home.includes(token),`Command Center missing ${token}`);
 for(const token of ['searchOwnerUsers','setOwnerUserAccess'])must(access.includes(token),`Access UI missing wired ${token}`);
 for(const token of ['searchOwnerBusinesses','setOwnerBusinessAccess'])must(businessUi.includes(token),`Business UI missing wired ${token}`);
-for(const token of ['getOwnerEconomySnapshot','XP issuance','Evidence tiers','Level distribution','Objective mix'])must(progression.includes(token),`Economy UI missing ${token}`);
+for(const token of ['getOwnerEconomySnapshot','XP issuance','Evidence tiers','Level distribution','Objective mix','Progression Studio','Create objective','Archive objective','Delete objective','Progression supply'])must(progression.includes(token),`Economy UI missing ${token}`);
 for(const token of ['getOwnerModerationQueues','resolveOwnerReviewReport'])must(moderationUi.includes(token),`Moderation UI missing ${token}`);
 for(const token of ['getOwnerOperationsSnapshot','setIngestionResumeAuthorization'])must(operationsUi.includes(token),`Operations UI missing ${token}`);
 for(const route of ['businesses','moderation'])must(layout.includes(`name="${route}"`),`Owner route not registered: ${route}`);
