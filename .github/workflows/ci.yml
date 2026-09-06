@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  typecheck:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -16,4 +16,5 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      - run: npm run audit
       - run: npm run typecheck
