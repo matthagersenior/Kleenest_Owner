@@ -6,7 +6,7 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { signInOwner } from '@/services/controlPlane';
 import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 
-const ownerRedirect=Linking.createURL('/auth',{scheme:'kleenest-owner'});
+const ownerRedirect='kleenest-owner://auth';
 
 type AuthMode='signin'|'signup';
 function messageOf(value:unknown){
