@@ -1,7 +1,9 @@
 import fs from 'node:fs';
-const requiredRoutes=['auth','audit','capabilities','intelligence','reports','data'];
+const requiredRoutes=['auth','audit','capabilities','intelligence','reports','data','creator-missions'];
 const layout=fs.readFileSync(new URL('../app/_layout.tsx',import.meta.url),'utf8');
 const service=fs.readFileSync(new URL('../src/services/controlPlane.ts',import.meta.url),'utf8');
+const creatorMissionService=fs.readFileSync(new URL('../src/services/creatorMissions.ts',import.meta.url),'utf8');
+const creatorMissionPage=fs.readFileSync(new URL('../app/creator-missions.tsx',import.meta.url),'utf8');
 const ownerAuthorization=fs.readFileSync(new URL('../src/services/ownerAuthorization.ts',import.meta.url),'utf8');
 const auth=fs.readFileSync(new URL('../app/auth.tsx',import.meta.url),'utf8');
 const config=fs.readFileSync(new URL('../app.config.ts',import.meta.url),'utf8');
@@ -19,4 +21,6 @@ if(pkg.scripts?.postinstall!=='node scripts/install-app-icon.mjs')throw new Erro
 for(const token of ['Continue with Google','signInWithOAuth','exchangeCodeForSession','Linking.createURL','Linking.openURL','authorizeOwnerSession'])if(!(service+'\n'+auth).includes(token))throw new Error(`Owner Google auth contract missing ${token}`);
 if(!authCompact.includes("provider:'google'")&&!authCompact.includes('provider:"google"'))throw new Error('Owner Google auth must use the Supabase google provider');
 if(!authCompact.includes('skipBrowserRedirect:true'))throw new Error('Owner Google auth must use native browser handoff');
+for(const token of ['owner_creator_mission_list','owner_creator_mission_upsert','owner_creator_mission_set_status','owner_creator_mission_delete'])if(!creatorMissionService.includes(token))throw new Error(`Creator mission owner authority missing ${token}`);
+for(const token of ['Creator Missions','Branded tracking link + QR','Activate mission','api.qrserver.com'])if(!creatorMissionPage.includes(token))throw new Error(`Creator mission control surface missing ${token}`);
 console.log(`Owner parity audit passed: ${requiredRoutes.length} Architecture-backed control-plane routes, root authentication, launcher identity, canonical authorities and guarded Google OAuth verified.`);
