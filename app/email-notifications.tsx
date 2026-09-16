@@ -33,6 +33,7 @@ function Choice<T extends string>({value,current,onPress}:{value:T;current:T;onP
 }
 
 function RuleCard({rule,onSave,onDelete,busy}:{rule:OwnerEmailRule;onSave:(next:OwnerEmailRule)=>void;onDelete:()=>void;busy:boolean}){
+ const theme=useOwnerTheme();
  const[draft,setDraft]=useState(rule);
  useEffect(()=>setDraft(rule),[rule]);
  return <View style={{...osCard,gap:10}}>
