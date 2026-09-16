@@ -85,6 +85,14 @@ export async function getOwnerEmailProviderStatus(){
   return data as {provider_configured:boolean;from_address:string;snapshot:OwnerEmailSnapshot};
 }
 
+export async function configureOwnerEmailProvider(apiKey:string,fromAddress:string){
+  const {data,error}=await client().rpc('owner_configure_email_provider',{
+    p_api_key:apiKey.trim(),p_from_address:fromAddress.trim()||null,p_reason:'Configured in Owner Email Notification Center'
+  });
+  if(error)throw new Error(error.message);
+  return data as {provider:string;configured:boolean;from_address:string};
+}
+
 export async function sendOwnerEmailTest(){
   const headers=await authHeaders();
   const {data,error}=await client().functions.invoke('owner-email-notifications',{body:{mode:'test'},headers});
