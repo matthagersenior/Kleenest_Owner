@@ -33,12 +33,12 @@ const primaryRoutes = [
   ['/creator-missions', 'Creator Missions', 'Create creator assignments, tracking links and QR codes, then control mission activation.'],
   ['/moderation', 'Trust & Moderation', 'Resolve reports and pending trust queues.'],
   ['/operations', 'Operations', 'Control ingestion and inspect integrity, delivery and backend health.'],
+  ['/email-notifications', 'Email Notifications', 'Control owner operational email, escalation, digest cadence, dedupe and delivery history.'],
 ] as const;
 
 const platformRoutes = [
   ['/intelligence', 'Intelligence Lab', 'Inspect platform intelligence, recommendations and advanced operating signals.'],
   ['/reports', 'Reporting', 'Build and inspect platform reporting without leaving KleenestOS.'],
-  ['/email-notifications', 'Email Notifications', 'Control owner operational email, escalation, digest cadence, dedupe and delivery history.'],
   ['/audit', 'System Audit', 'Run capability and activity audits.'],
   ['/capabilities', 'System Capabilities', 'Inspect the canonical capability registry and retirement state.'],
   ['/data', 'System Data Workbench', 'Use the audited CRUD gateway for advanced platform data work.'],
@@ -169,6 +169,11 @@ export default function KleenestOSCommandCenter() {
     </OSHero>
 
     {errors.map((message, index) => <View key={`${message}-${index}`} style={{ ...osCard, borderColor: '#e8bbbb', backgroundColor: '#fff6f6' }}><Text style={{ color: osColors.danger, fontWeight: '900' }}>Subsystem degraded</Text><Text style={{ color: osColors.danger }}>{message}</Text></View>)}
+
+    <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+      <Link href="/search" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: osColors.ink, borderColor: osColors.ink }}><Text style={{ color: '#bde4cf', fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>FIND ANYTHING</Text><Text style={{ color: 'white', fontSize: 20, fontWeight: '900', marginTop: 4 }}>Search KleenestOS →</Text><Text style={{ color: '#dce8e1', marginTop: 4 }}>Controls, people, businesses, settings and operations.</Text></Pressable></Link>
+      <Link href="/email-notifications" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: '#fff8e8', borderColor: '#eed28c' }}><Text style={{ color: '#7b5913', fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER ALERTS</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Email Notifications →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Immediate alerts, digests, audit cadence and delivery history.</Text></Pressable></Link>
+    </View>
 
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       <HealthCard label="Ingestion" value={paused ? 'PAUSED' : `${runningMarkets} LIVE`} tone={hardStop ? 'danger' : paused ? 'warning' : 'good'} detail={`${pendingMarkets} pending markets · ${String(scheduler.source ?? 'scheduler unknown')}`} />
