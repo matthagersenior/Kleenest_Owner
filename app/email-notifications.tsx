@@ -6,6 +6,7 @@ import {
   saveOwnerEmailNotificationRule,sendOwnerEmailTest,updateOwnerEmailNotificationSettings,
   type OwnerEmailCadence,type OwnerEmailRule,type OwnerEmailSeverity,type OwnerEmailSnapshot
 } from '@/services/ownerEmailNotifications';
+import { useOwnerTheme } from '@/services/theme';
 
 const sources=[
   ['security_access','Security & access','Security'],
@@ -22,7 +23,7 @@ const sources=[
 const cadences:OwnerEmailCadence[]=['immediate','hourly','daily','weekly'];
 const severities:OwnerEmailSeverity[]=['info','warning','critical'];
 const weekdays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const inputStyle={backgroundColor:'white',borderWidth:1,borderColor:osColors.border,borderRadius:12,paddingHorizontal:12,paddingVertical:10,color:osColors.ink} as const;
+const inputStyle=(theme:ReturnType<typeof useOwnerTheme>)=>({backgroundColor:theme.surfaceRaised,borderWidth:1,borderColor:theme.line,borderRadius:12,paddingHorizontal:12,paddingVertical:10,color:theme.ink} as const);
 
 function Choice<T extends string>({value,current,onPress}:{value:T;current:T;onPress:(value:T)=>void}){
  const active=value===current;
@@ -48,12 +49,13 @@ function RuleCard({rule,onSave,onDelete,busy}:{rule:OwnerEmailRule;onSave:(next:
    <View style={{flex:1}}><Text style={{fontWeight:'900',color:osColors.ink}}>Break out noteworthy findings</Text><Text style={{color:osColors.muted}}>Warning/critical findings can bypass the digest and email immediately.</Text></View>
    <Switch value={draft.noteworthy_immediate} onValueChange={noteworthy_immediate=>setDraft({...draft,noteworthy_immediate})} disabled={busy}/>
   </View>
-  <View style={{gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Duplicate suppression window · minutes</Text><TextInput keyboardType="number-pad" value={String(draft.dedupe_window_minutes)} onChangeText={v=>setDraft({...draft,dedupe_window_minutes:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
+  <View style={{gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Duplicate suppression window · minutes</Text><TextInput keyboardType="number-pad" value={String(draft.dedupe_window_minutes)} onChangeText={v=>setDraft({...draft,dedupe_window_minutes:Math.max(1,Number(v)||1)})} style={inputStyle(theme)}/></View>
   <View style={{flexDirection:'row',flexWrap:'wrap',gap:9}}><PrimaryAction label={busy?'Saving…':'Save rule'} onPress={()=>onSave(draft)} disabled={busy}/><Pressable onPress={onDelete} disabled={busy} style={{padding:10}}><Text style={{color:osColors.danger,fontWeight:'900'}}>Delete rule</Text></Pressable></View>
  </View>
 }
 
 export default function EmailNotifications(){
+ const theme=useOwnerTheme();
  const[data,setData]=useState<OwnerEmailSnapshot|null>(null),[provider,setProvider]=useState<{provider_configured:boolean;from_address:string}|null>(null);
  const[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
  const[recipient,setRecipient]=useState(''),[timezone,setTimezone]=useState('America/Chicago'),[dailyHour,setDailyHour]=useState('8'),[weeklyHour,setWeeklyHour]=useState('8'),[weeklyDow,setWeeklyDow]=useState(1),[maxImmediate,setMaxImmediate]=useState('6');
@@ -114,12 +116,12 @@ export default function EmailNotifications(){
  if(loading)return <View style={{flex:1,justifyContent:'center'}}><ActivityIndicator size="large"/></View>;
  if(!data)return <View style={{padding:16}}><Text style={{color:osColors.danger}}>{error??'Email notification settings could not be loaded.'}</Text></View>;
 
- return <ScrollView contentInsetAdjustmentBehavior="automatic" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh}/>} contentContainerStyle={{padding:16,gap:16,paddingBottom:64}}>
+ return <ScrollView contentInsetAdjustmentBehavior="automatic" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh}/>} contentContainerStyle={{padding:16,gap:16,paddingBottom:84,backgroundColor:theme.canvas}}>
   <OSHero eyebrow="KLEENESTOS · OWNER SIGNALS" title="Email Notifications" body="High-signal operational email with a reason on every alert, digest controls, duplicate suppression, and auditable owner CRUD.">
    <StatusPill label={data.settings.enabled?'EMAIL POLICY ON':'EMAIL POLICY OFF'} tone={data.settings.enabled?'good':'warning'}/>
   </OSHero>
 
-  {error?<View style={{...osCard,borderColor:'#e8bbbb',backgroundColor:'#fff6f6'}}><Text style={{color:osColors.danger,fontWeight:'900'}}>Email notification issue</Text><Text style={{color:osColors.danger}}>{error}</Text></View>:null}
+  {error?<View style={{...osCard,borderColor:theme.danger,backgroundColor:theme.surface}}><Text style={{color:osColors.danger,fontWeight:'900'}}>Email notification issue</Text><Text style={{color:osColors.danger}}>{error}</Text></View>:null}
 
   <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
    <HealthCard label="Provider" value={provider?.provider_configured?'READY':'SETUP'} tone={provider?.provider_configured?'good':'warning'} detail={provider?.provider_configured?provider.from_address:'Connect Resend below to deliver queued email'}/>
@@ -129,22 +131,22 @@ export default function EmailNotifications(){
   </View>
 
   {!provider?.provider_configured?<ActionSheetCard title="Finish email delivery" body="Signal collection is active and safely queued. Connect a Resend API key here; the key is stored in Supabase Vault and is never returned to the app.">
-   <Text style={{fontWeight:'800',color:osColors.ink}}>Resend API key</Text><TextInput secureTextEntry autoCapitalize="none" value={providerKey} onChangeText={setProviderKey} placeholder="re_…" style={inputStyle}/>
-   <Text style={{fontWeight:'800',color:osColors.ink}}>From address</Text><TextInput autoCapitalize="none" value={fromAddress} onChangeText={setFromAddress} style={inputStyle}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>Resend API key</Text><TextInput secureTextEntry autoCapitalize="none" value={providerKey} onChangeText={setProviderKey} placeholder="re_…" style={inputStyle(theme)}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>From address</Text><TextInput autoCapitalize="none" value={fromAddress} onChangeText={setFromAddress} style={inputStyle(theme)}/>
    <PrimaryAction label={busy?'Connecting…':'Connect email provider'} onPress={configureProvider} disabled={busy||!providerKey.trim()}/>
   </ActionSheetCard>:null}
 
   <ActionSheetCard title="Owner email policy" body="This is separate from consumer/business marketing notifications. It is only for owner operational signals.">
    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}><Text style={{fontWeight:'900',color:osColors.ink}}>Email notifications enabled</Text><Switch value={data.settings.enabled} onValueChange={setGlobal}/></View>
-   <Text style={{fontWeight:'800',color:osColors.ink}}>Recipient</Text><TextInput autoCapitalize="none" keyboardType="email-address" value={recipient} onChangeText={setRecipient} style={inputStyle}/>
-   <Text style={{fontWeight:'800',color:osColors.ink}}>Timezone</Text><TextInput autoCapitalize="none" value={timezone} onChangeText={setTimezone} style={inputStyle}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>Recipient</Text><TextInput autoCapitalize="none" keyboardType="email-address" value={recipient} onChangeText={setRecipient} style={inputStyle(theme)}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>Timezone</Text><TextInput autoCapitalize="none" value={timezone} onChangeText={setTimezone} style={inputStyle(theme)}/>
    <View style={{flexDirection:'row',gap:12}}>
-    <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Daily digest hour</Text><TextInput keyboardType="number-pad" value={dailyHour} onChangeText={setDailyHour} style={inputStyle}/></View>
-    <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Weekly hour</Text><TextInput keyboardType="number-pad" value={weeklyHour} onChangeText={setWeeklyHour} style={inputStyle}/></View>
+    <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Daily digest hour</Text><TextInput keyboardType="number-pad" value={dailyHour} onChangeText={setDailyHour} style={inputStyle(theme)}/></View>
+    <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Weekly hour</Text><TextInput keyboardType="number-pad" value={weeklyHour} onChangeText={setWeeklyHour} style={inputStyle(theme)}/></View>
    </View>
    <Text style={{fontWeight:'800',color:osColors.ink}}>Weekly digest day</Text>
    <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{weekdays.map((day,index)=><Pressable key={day} onPress={()=>setWeeklyDow(index)} style={{borderRadius:999,paddingHorizontal:10,paddingVertical:7,borderWidth:1,borderColor:weeklyDow===index?osColors.green:osColors.border,backgroundColor:weeklyDow===index?osColors.mint:'white'}}><Text style={{fontWeight:'800',color:weeklyDow===index?osColors.green:osColors.muted}}>{day}</Text></Pressable>)}</View>
-   <Text style={{fontWeight:'800',color:osColors.ink}}>Maximum immediate signals per hour</Text><TextInput keyboardType="number-pad" value={maxImmediate} onChangeText={setMaxImmediate} style={inputStyle}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>Maximum immediate signals per hour</Text><TextInput keyboardType="number-pad" value={maxImmediate} onChangeText={setMaxImmediate} style={inputStyle(theme)}/>
    <View style={{flexDirection:'row',flexWrap:'wrap',gap:9}}><PrimaryAction label={busy?'Saving…':'Save email policy'} onPress={saveSettings} disabled={busy}/><PrimaryAction label="Send test email" onPress={testEmail} disabled={busy||!provider?.provider_configured}/></View>
   </ActionSheetCard>
 
@@ -156,8 +158,8 @@ export default function EmailNotifications(){
   {availableSources.length?<ActionSheetCard title="Add a notification rule" body="Create a rule for any supported owner signal source that is not currently configured.">
    <Text style={{fontWeight:'800',color:osColors.ink}}>Signal source</Text>
    <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{availableSources.map(([key,label])=><Pressable key={key} onPress={()=>{setNewSource(key);setNewName(label);setNewCode(key.replaceAll('_','-'))}} style={{borderRadius:999,paddingHorizontal:10,paddingVertical:7,borderWidth:1,borderColor:newSource===key?osColors.green:osColors.border,backgroundColor:newSource===key?osColors.mint:'white'}}><Text style={{fontWeight:'800',color:newSource===key?osColors.green:osColors.muted}}>{label}</Text></Pressable>)}</View>
-   <Text style={{fontWeight:'800',color:osColors.ink}}>Rule name</Text><TextInput value={newName} onChangeText={setNewName} style={inputStyle}/>
-   <Text style={{fontWeight:'800',color:osColors.ink}}>Rule code</Text><TextInput autoCapitalize="none" value={newCode} onChangeText={setNewCode} style={inputStyle}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>Rule name</Text><TextInput value={newName} onChangeText={setNewName} style={inputStyle(theme)}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>Rule code</Text><TextInput autoCapitalize="none" value={newCode} onChangeText={setNewCode} style={inputStyle(theme)}/>
    <PrimaryAction label="Create rule" onPress={addRule} disabled={busy||!newSource}/>
   </ActionSheetCard>:null}
 
