@@ -71,7 +71,7 @@ export default function EmailNotifications(){
  },[]);
  useEffect(()=>{load().catch(c=>setError(c instanceof Error?c.message:String(c))).finally(()=>setLoading(false))},[load]);
 
- const availableSources=useMemo(()=>sources.filter(([key])=>!data?.rules.some(rule=>draft.source_key===key)),[data?.rules]);
+ const availableSources=useMemo(()=>sources.filter(([key])=>!data?.rules.some(rule=>rule.source_key===key)),[data?.rules]);
  useEffect(()=>{if(!newSource&&availableSources.length){setNewSource(availableSources[0][0]);setNewName(availableSources[0][1]);setNewCode(availableSources[0][0].replaceAll('_','-'));}},[availableSources,newSource]);
 
  async function refresh(){setRefreshing(true);try{await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setRefreshing(false)}}
@@ -88,7 +88,7 @@ export default function EmailNotifications(){
   try{await saveOwnerEmailNotificationRule(next);await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}
  }
  function removeRule(rule:OwnerEmailRule){
-  Alert.alert('Delete email rule?',`${draft.name} will stop producing owner email until the category is added again.`,[
+  Alert.alert('Delete email rule?',`${rule.name} will stop producing owner email until the category is added again.`,[
    {text:'Cancel',style:'cancel'},
    {text:'Delete',style:'destructive',onPress:async()=>{setBusy(true);try{await deleteOwnerEmailNotificationRule(rule.id);await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}}}
   ]);
@@ -98,7 +98,7 @@ export default function EmailNotifications(){
   const meta=sources.find(([key])=>key===newSource);
   setBusy(true);setError(null);
   try{
-   await saveOwnerEmailNotificationRule({code:newCode.trim(),name:newName.trim(),source_key:newSource,category:meta?.[2]??'Owner',cadence:newSource==='audits'?'weekly':'daily',severity_floor:['security_access','data_integrity','ingestion_storage','economy_anomalies'].includes(newSource)?'warning':'info',enabled:true,noteworthy_immediate:true,dedupe_window_minutes:newSource==='audits'?10080:360,max_per_digest:50});
+   await saveOwnerEmailNotificationRule({code:newCode.trim(),name:newName.trim(),source_key:newSource,category:meta?.[2]??'Owner',cadence:newSource==='audits'?'weekly':'daily',severity_floor:['security_access','data_integrity','ingestion_storage','economy_anomalies'].includes(newSource)?'warning':'info',enabled:true,noteworthy_immediate:true,dedupe_window_minutes:newSource==='audits'||newSource==='ingestion_storage'?10080:newSource==='data_integrity'?1440:360,max_per_digest:50});
    setNewSource('');setNewName('');setNewCode('');await load();
   }catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}
  }
@@ -125,7 +125,7 @@ export default function EmailNotifications(){
   {error?<View style={{...osCard,borderColor:'#e8bbbb',backgroundColor:'#fff6f6'}}><Text style={{color:osColors.danger,fontWeight:'900'}}>Email notification issue</Text><Text style={{color:osColors.danger}}>{error}</Text></View>:null}
 
   <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
-   <HealthCard label="Provider" value={provider?.provider_configured?'READY':'SETUP'} tone={provider?.provider_configured?'good':'warning'} detail={provider?.provider_configured?provider.from_address:'RESEND_API_KEY required for delivery'}/>
+   <HealthCard label="Provider" value={provider?.provider_configured?'READY':'SETUP'} tone={provider?.provider_configured?'good':'warning'} detail={provider?.provider_configured?provider.from_address:'Connect Resend below to deliver queued email'}/>
    <HealthCard label="Queued" value={data.queue.queued} tone={data.queue.queued?'warning':'good'} detail="Waiting for cadence/provider"/>
    <HealthCard label="Sent · 24h" value={data.queue.sent_24h} tone="good" detail="Owner operational emails"/>
    <HealthCard label="Failed" value={data.queue.failed} tone={data.queue.failed?'danger':'good'} detail="Terminal delivery failures"/>
@@ -152,7 +152,7 @@ export default function EmailNotifications(){
   </ActionSheetCard>
 
   <View style={{gap:9}}>
-   <SectionHeader title="Notification rules" body="Everything starts enabled. Routine signals digest; meaningful warning/critical findings can break out immediately. Changes save as you make them."/>
+   <SectionHeader title="Notification rules" body="Everything starts enabled. Routine signals digest; meaningful warning/critical findings can break out immediately. Edit a rule, then save it. Critical findings can still break out immediately."/>
    {data.rules.map(rule=><RuleCard key={rule.id} rule={rule} busy={busy} onSave={saveRule} onDelete={()=>removeRule(rule)}/>)}
   </View>
 
