@@ -38,6 +38,7 @@ const primaryRoutes = [
 const platformRoutes = [
   ['/intelligence', 'Intelligence Lab', 'Inspect platform intelligence, recommendations and advanced operating signals.'],
   ['/reports', 'Reporting', 'Build and inspect platform reporting without leaving KleenestOS.'],
+  ['/email-notifications', 'Email Notifications', 'Control owner operational email, escalation, digest cadence, dedupe and delivery history.'],
   ['/audit', 'System Audit', 'Run capability and activity audits.'],
   ['/capabilities', 'System Capabilities', 'Inspect the canonical capability registry and retirement state.'],
   ['/data', 'System Data Workbench', 'Use the audited CRUD gateway for advanced platform data work.'],
