@@ -7,6 +7,7 @@ import { getOwnerEconomySnapshot } from '@/services/ownerEconomy';
 import { getOwnerModerationQueues } from '@/services/ownerModeration';
 import { getOwnerOperationsSnapshot } from '@/services/ownerOperations';
 import { getPlatformHistory } from '@/services/controlPlane';
+import { useOwnerTheme } from '@/services/theme';
 
 type State = {
   authorization: OwnerAuthorization | null;
@@ -64,9 +65,10 @@ function compactBytes(value: unknown) {
 }
 
 function AttentionCard({ item }: { item: AttentionItem }) {
+  const theme=useOwnerTheme();
   const danger = item.tone === 'danger';
   return <Link href={item.href as any} asChild>
-    <Pressable style={{ ...osCard, borderColor: danger ? '#e8bbbb' : '#efd9a5', backgroundColor: danger ? '#fff6f6' : '#fffaf0', gap: 5 }}>
+    <Pressable style={{ ...osCard, borderColor: danger ? theme.danger : theme.warning, backgroundColor: theme.surface, gap: 5 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={{ color: danger ? osColors.danger : osColors.warning, fontWeight: '900' }}>{item.title}</Text>
@@ -79,9 +81,10 @@ function AttentionCard({ item }: { item: AttentionItem }) {
 }
 
 function DomainList({ routes, subdued = false }: { routes: readonly (readonly [string, string, string])[]; subdued?: boolean }) {
+  const theme=useOwnerTheme();
   return <View style={{ gap: 8 }}>
     {routes.map(([href, title, body]) => <Link key={href} href={href as any} asChild>
-      <Pressable style={{ ...osCard, backgroundColor: subdued ? '#f7f9f8' : 'white' }}>
+      <Pressable style={{ ...osCard, backgroundColor: subdued ? theme.surfaceRaised : theme.surface }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: osColors.ink }}>{title}</Text>
@@ -95,6 +98,7 @@ function DomainList({ routes, subdued = false }: { routes: readonly (readonly [s
 }
 
 export default function KleenestOSCommandCenter() {
+  const theme=useOwnerTheme();
   const [state, setState] = useState<State>(empty);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -163,17 +167,17 @@ export default function KleenestOSCommandCenter() {
   const runningMarkets = number(markets.running);
   const pendingMarkets = number(markets.pending);
 
-  return <ScrollView contentInsetAdjustmentBehavior="automatic" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 64 }}>
+  return <ScrollView contentInsetAdjustmentBehavior="automatic" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 84, backgroundColor:theme.canvas }}>
     <OSHero eyebrow="KLEENESTOS · PRIVATE PLATFORM OPERATING SYSTEM" title="COMMAND CENTER" body="Live platform state, what needs attention, and the control surface that can resolve it.">
       {state.authorization ? <StatusPill label={state.authorization.is_platform_owner ? 'PLATFORM OWNER · FULL CONTROL' : 'ADMIN · RESTRICTED CONTROL'} tone={state.authorization.is_platform_owner ? 'good' : 'warning'} /> : null}
     </OSHero>
 
-    {errors.map((message, index) => <View key={`${message}-${index}`} style={{ ...osCard, borderColor: '#e8bbbb', backgroundColor: '#fff6f6' }}><Text style={{ color: osColors.danger, fontWeight: '900' }}>Subsystem degraded</Text><Text style={{ color: osColors.danger }}>{message}</Text></View>)}
+    {errors.map((message, index) => <View key={`${message}-${index}`} style={{ ...osCard, borderColor: theme.danger, backgroundColor: theme.surface }}><Text style={{ color: osColors.danger, fontWeight: '900' }}>Subsystem degraded</Text><Text style={{ color: osColors.danger }}>{message}</Text></View>)}
 
     <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
-      <Link href="/search" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: osColors.ink, borderColor: osColors.ink }}><Text style={{ color: '#bde4cf', fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>FIND ANYTHING</Text><Text style={{ color: 'white', fontSize: 20, fontWeight: '900', marginTop: 4 }}>Search KleenestOS →</Text><Text style={{ color: '#dce8e1', marginTop: 4 }}>Controls, people, businesses, settings and operations.</Text></Pressable></Link>
+      <Link href="/search" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: theme.accent, borderColor: theme.accent }}><Text style={{ color: theme.accentText, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>FIND ANYTHING</Text><Text style={{ color: theme.accentText, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Search KleenestOS →</Text><Text style={{ color: theme.accentText, marginTop: 4 }}>Controls, people, businesses, settings and operations.</Text></Pressable></Link>
       <Link href="/account" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150 }}><Text style={{ color: osColors.green, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER PROFILE</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Profile & Themes →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Identity, appearance and all Owner theme options.</Text></Pressable></Link>
-      <Link href="/email-notifications" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: '#fff8e8', borderColor: '#eed28c' }}><Text style={{ color: '#7b5913', fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER ALERTS</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Email Notifications →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Immediate alerts, digests, audit cadence and delivery history.</Text></Pressable></Link>
+      <Link href="/email-notifications" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: theme.surfaceRaised, borderColor: theme.warning }}><Text style={{ color: theme.warning, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER ALERTS</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Email Notifications →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Immediate alerts, digests, audit cadence and delivery history.</Text></Pressable></Link>
     </View>
 
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -190,11 +194,11 @@ export default function KleenestOSCommandCenter() {
       {attention.length ? attention.map(item => <AttentionCard key={item.key} item={item} />) : <View style={{ ...osCard, gap: 5 }}><Text style={{ color: osColors.good, fontWeight: '900' }}>No active owner actions</Text><Text style={{ color: osColors.muted }}>Current operational, moderation, integrity, delivery, and economy gates are clear.</Text></View>}
     </View>
 
-    <View style={{ ...osCard, backgroundColor: osColors.ink, gap: 8 }}>
+    <View style={{ ...osCard, backgroundColor: theme.accent, borderColor:theme.accent, gap: 8 }}>
       <Text style={{ color: '#bde4cf', fontWeight: '900', letterSpacing: 1, fontSize: 10 }}>ECONOMY PULSE</Text>
       <Text style={{ color: 'white', fontSize: 22, fontWeight: '900' }}>{number(state.economy?.xpLast24h).toLocaleString()} XP issued in the last 24 hours</Text>
       <Text style={{ color: '#dce8e1' }}>{number(state.economy?.discoveries).toLocaleString()} canonical discoveries · {number(state.economy?.onSiteDiscoveries).toLocaleString()} on-site live · {number(state.economy?.activeObjectives).toLocaleString()} active objectives</Text>
-      <Link href="/progression" asChild><Pressable style={{ alignSelf: 'flex-start', backgroundColor: '#d9efe1', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 }}><Text style={{ fontWeight: '900', color: osColors.ink }}>Open Economy →</Text></Pressable></Link>
+      <Link href="/progression" asChild><Pressable style={{ alignSelf: 'flex-start', backgroundColor: theme.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 }}><Text style={{ fontWeight: '900', color: osColors.ink }}>Open Economy →</Text></Pressable></Link>
     </View>
 
     <View style={{ gap: 9 }}>
