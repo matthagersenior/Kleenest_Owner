@@ -1,11 +1,11 @@
 import { Redirect,Tabs,useRouter,useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect,useState } from 'react';
-import { ActivityIndicator,Pressable,Text,View } from 'react-native';
+import { ActivityIndicator,Pressable,Text,View,type ColorValue } from 'react-native';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useOwnerTheme } from '@/services/theme';
 
-function TabIcon({symbol,color}:{symbol:string;color:string}){return <Text style={{fontSize:18,fontWeight:'900',color}}>{symbol}</Text>}
+function TabIcon({symbol,color}:{symbol:string;color:ColorValue}){return <Text style={{fontSize:18,fontWeight:'900',color}}>{symbol}</Text>}
 
 export default function RootLayout(){
  const theme=useOwnerTheme();
