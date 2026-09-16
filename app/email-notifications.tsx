@@ -48,10 +48,7 @@ function RuleCard({rule,onSave,onDelete,busy}:{rule:OwnerEmailRule;onSave:(next:
    <View style={{flex:1}}><Text style={{fontWeight:'900',color:osColors.ink}}>Break out noteworthy findings</Text><Text style={{color:osColors.muted}}>Warning/critical findings can bypass the digest and email immediately.</Text></View>
    <Switch value={draft.noteworthy_immediate} onValueChange={noteworthy_immediate=>setDraft({...draft,noteworthy_immediate})} disabled={busy}/>
   </View>
-  <View style={{flexDirection:'row',gap:12}}>
-   <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Dedupe minutes</Text><TextInput keyboardType="number-pad" value={String(draft.dedupe_window_minutes)} onChangeText={v=>setDraft({...draft,dedupe_window_minutes:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
-   <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Max / digest</Text><TextInput keyboardType="number-pad" value={String(draft.max_per_digest)} onChangeText={v=>setDraft({...draft,max_per_digest:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
-  </View>
+  <View style={{gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Duplicate suppression window · minutes</Text><TextInput keyboardType="number-pad" value={String(draft.dedupe_window_minutes)} onChangeText={v=>setDraft({...draft,dedupe_window_minutes:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
   <View style={{flexDirection:'row',flexWrap:'wrap',gap:9}}><PrimaryAction label={busy?'Saving…':'Save rule'} onPress={()=>onSave(draft)} disabled={busy}/><Pressable onPress={onDelete} disabled={busy} style={{padding:10}}><Text style={{color:osColors.danger,fontWeight:'900'}}>Delete rule</Text></Pressable></View>
  </View>
 }
@@ -148,7 +145,7 @@ export default function EmailNotifications(){
    <Text style={{fontWeight:'800',color:osColors.ink}}>Weekly digest day</Text>
    <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{weekdays.map((day,index)=><Pressable key={day} onPress={()=>setWeeklyDow(index)} style={{borderRadius:999,paddingHorizontal:10,paddingVertical:7,borderWidth:1,borderColor:weeklyDow===index?osColors.green:osColors.border,backgroundColor:weeklyDow===index?osColors.mint:'white'}}><Text style={{fontWeight:'800',color:weeklyDow===index?osColors.green:osColors.muted}}>{day}</Text></Pressable>)}</View>
    <Text style={{fontWeight:'800',color:osColors.ink}}>Maximum immediate signals per hour</Text><TextInput keyboardType="number-pad" value={maxImmediate} onChangeText={setMaxImmediate} style={inputStyle}/>
-   <View style={{flexDirection:'row',flexWrap:'wrap',gap:9}}><PrimaryAction label={busy?'Saving…':'Save email policy'} onPress={saveSettings} disabled={busy}/><PrimaryAction label="Send test email" onPress={testEmail} disabled={busy}/></View>
+   <View style={{flexDirection:'row',flexWrap:'wrap',gap:9}}><PrimaryAction label={busy?'Saving…':'Save email policy'} onPress={saveSettings} disabled={busy}/><PrimaryAction label="Send test email" onPress={testEmail} disabled={busy||!provider?.provider_configured}/></View>
   </ActionSheetCard>
 
   <View style={{gap:9}}>
