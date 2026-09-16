@@ -9,6 +9,7 @@ import { OWNER_THEME_OPTIONS,getOwnerThemeMode,setOwnerThemeMode,type OwnerTheme
 export default function OwnerAccount(){
   const theme=useOwnerTheme();const card=useOSCardStyle();
   const[email,setEmail]=useState(''),[name,setName]=useState(''),[authority,setAuthority]=useState(''),[mode,setMode]=useState<OwnerThemeMode>(getOwnerThemeMode()),[message,setMessage]=useState('');
+  useEffect(()=>setMode(theme.mode),[theme.mode]);
   useEffect(()=>{let active=true;(async()=>{const client=getSupabaseClient();const{data}=await client.auth.getUser();if(!active)return;setEmail(data.user?.email||'');setName(String(data.user?.user_metadata?.full_name||data.user?.user_metadata?.name||data.user?.user_metadata?.kleenest_name||''));try{const a=await getOwnerAuthorization();if(active)setAuthority(a.is_platform_owner?'Platform Owner':a.is_admin?'Administrator':'Unauthorized')}catch{if(active)setAuthority('Unauthorized')}})();return()=>{active=false}},[]);
   async function choose(next:OwnerThemeMode){setMode(next);await setOwnerThemeMode(next);setMessage((OWNER_THEME_OPTIONS.find(x=>x.value===next)?.label??next)+' applied.')}
   async function signOut(){await getSupabaseClient().auth.signOut({scope:'local'});router.replace('/auth')}
