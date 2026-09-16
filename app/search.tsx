@@ -3,6 +3,7 @@ import { useEffect,useMemo,useState } from 'react';
 import { ActivityIndicator,Pressable,ScrollView,Text,TextInput,View } from 'react-native';
 import { OSHero,SectionHeader,StatusPill,osCard,osColors } from '@/components/KleenestOS';
 import { searchOwnerBusinesses,searchOwnerUsers } from '@/services/ownerSearch';
+import { useOwnerTheme } from '@/services/theme';
 
 type SearchTarget = {
   href:string;
@@ -13,6 +14,10 @@ type SearchTarget = {
 };
 
 const targets:SearchTarget[]=[
+  {href:'/account',title:'Profile & Themes',description:'Owner profile, appearance and every Kleenest theme.',keywords:['profile','account','theme','themes','appearance','dark mode','light mode','early access','winter guardian','night watch','autumn trail','harvest table'],section:'Owner profile'},
+  {href:'/control',title:'Control Center',description:'Daily owner control surfaces.',keywords:['control','settings','owner controls'],section:'Navigation'},
+  {href:'/pilots',title:'Pilots',description:'Creator, business and pilot evidence workflows.',keywords:['pilots','pilot','creator campaign'],section:'Navigation'},
+  {href:'/developer',title:'Developer',description:'Developer-platform, capability, data and diagnostic controls.',keywords:['developer','api','capabilities','developer platform'],section:'Navigation'},
   {href:'/email-notifications',title:'Email Notifications',description:'Owner operational email, immediate alerts, digests, audit cadence, dedupe, delivery history and test sends.',keywords:['email','notification','notifications','alerts','digest','weekly','audit email','resend','delivery'],section:'Owner controls'},
   {href:'/operations',title:'Operations',description:'Ingestion, storage guard, delivery health, scheduler, integrity and backend operations.',keywords:['operations','ingestion','storage','push','firebase','scheduler','cron','health','integrity'],section:'Owner controls'},
   {href:'/access',title:'People & Access',description:'Search users and control roles, subscriptions and owner/admin authority.',keywords:['people','user','users','access','role','roles','admin','owner','subscription'],section:'Owner controls'},
@@ -51,6 +56,7 @@ function ResultLink({href,title,description,meta}:{href:string;title:string;desc
 }
 
 export default function OwnerSearch(){
+  const theme=useOwnerTheme();
   const[query,setQuery]=useState('');
   const[users,setUsers]=useState<any[]>([]);
   const[businesses,setBusinesses]=useState<any[]>([]);
@@ -81,7 +87,7 @@ export default function OwnerSearch(){
 
   const hasAny=local.length||users.length||businesses.length;
 
-  return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:16,gap:16,paddingBottom:64}}>
+  return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:16,gap:16,paddingBottom:84,backgroundColor:theme.canvas}}>
     <OSHero eyebrow="KLEENESTOS · UNIVERSAL SEARCH" title="Search" body="Find controls, settings, people, businesses and the Owner tools that act on them." />
     <TextInput
       autoFocus
@@ -89,7 +95,7 @@ export default function OwnerSearch(){
       onChangeText={setQuery}
       placeholder="Search KleenestOS…"
       placeholderTextColor={osColors.muted}
-      style={{backgroundColor:'white',borderWidth:1,borderColor:osColors.border,borderRadius:16,paddingHorizontal:14,paddingVertical:13,fontSize:18,color:osColors.ink}}
+      style={{backgroundColor:theme.surface,borderWidth:1,borderColor:theme.line,borderRadius:16,paddingHorizontal:14,paddingVertical:13,fontSize:18,color:theme.ink}}
       autoCapitalize="none"
       autoCorrect={false}
       returnKeyType="search"
