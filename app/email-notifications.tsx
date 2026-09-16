@@ -2,7 +2,7 @@ import { useCallback,useEffect,useMemo,useState } from 'react';
 import { ActivityIndicator,Alert,Pressable,RefreshControl,ScrollView,Switch,Text,TextInput,View } from 'react-native';
 import { ActionSheetCard,EntityRow,HealthCard,OSHero,PrimaryAction,SectionHeader,StatusPill,osCard,osColors } from '@/components/KleenestOS';
 import {
-  deleteOwnerEmailNotificationRule,getOwnerEmailNotificationSnapshot,getOwnerEmailProviderStatus,
+  configureOwnerEmailProvider,deleteOwnerEmailNotificationRule,getOwnerEmailNotificationSnapshot,getOwnerEmailProviderStatus,
   saveOwnerEmailNotificationRule,sendOwnerEmailTest,updateOwnerEmailNotificationSettings,
   type OwnerEmailCadence,type OwnerEmailRule,type OwnerEmailSeverity,type OwnerEmailSnapshot
 } from '@/services/ownerEmailNotifications';
@@ -31,26 +31,28 @@ function Choice<T extends string>({value,current,onPress}:{value:T;current:T;onP
  </Pressable>
 }
 
-function RuleCard({rule,onChange,onDelete,busy}:{rule:OwnerEmailRule;onChange:(next:OwnerEmailRule)=>void;onDelete:()=>void;busy:boolean}){
+function RuleCard({rule,onSave,onDelete,busy}:{rule:OwnerEmailRule;onSave:(next:OwnerEmailRule)=>void;onDelete:()=>void;busy:boolean}){
+ const[draft,setDraft]=useState(rule);
+ useEffect(()=>setDraft(rule),[rule]);
  return <View style={{...osCard,gap:10}}>
   <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:12}}>
-   <View style={{flex:1,gap:3}}><Text style={{fontSize:17,fontWeight:'900',color:osColors.ink}}>{rule.name}</Text><Text style={{color:osColors.muted}}>{rule.description}</Text></View>
-   <Switch value={rule.enabled} onValueChange={enabled=>onChange({...rule,enabled})} disabled={busy}/>
+   <View style={{flex:1,gap:3}}><Text style={{fontSize:17,fontWeight:'900',color:osColors.ink}}>{draft.name}</Text><Text style={{color:osColors.muted}}>{draft.description}</Text></View>
+   <Switch value={draft.enabled} onValueChange={enabled=>setDraft({...draft,enabled})} disabled={busy}/>
   </View>
-  <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}><StatusPill label={rule.category}/><StatusPill label={rule.source_key.replaceAll('_',' ')}/></View>
+  <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}><StatusPill label={draft.category}/><StatusPill label={draft.source_key.replaceAll('_',' ')}/></View>
   <Text style={{fontWeight:'900',color:osColors.ink}}>Cadence</Text>
-  <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{cadences.map(value=><Choice key={value} value={value} current={rule.cadence} onPress={cadence=>onChange({...rule,cadence})}/>)}</View>
+  <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{cadences.map(value=><Choice key={value} value={value} current={draft.cadence} onPress={cadence=>setDraft({...draft,cadence})}/>)}</View>
   <Text style={{fontWeight:'900',color:osColors.ink}}>Minimum severity</Text>
-  <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{severities.map(value=><Choice key={value} value={value} current={rule.severity_floor} onPress={severity_floor=>onChange({...rule,severity_floor})}/>)}</View>
+  <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{severities.map(value=><Choice key={value} value={value} current={draft.severity_floor} onPress={severity_floor=>setDraft({...draft,severity_floor})}/>)}</View>
   <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:12}}>
    <View style={{flex:1}}><Text style={{fontWeight:'900',color:osColors.ink}}>Break out noteworthy findings</Text><Text style={{color:osColors.muted}}>Warning/critical findings can bypass the digest and email immediately.</Text></View>
-   <Switch value={rule.noteworthy_immediate} onValueChange={noteworthy_immediate=>onChange({...rule,noteworthy_immediate})} disabled={busy}/>
+   <Switch value={draft.noteworthy_immediate} onValueChange={noteworthy_immediate=>setDraft({...draft,noteworthy_immediate})} disabled={busy}/>
   </View>
   <View style={{flexDirection:'row',gap:12}}>
-   <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Dedupe minutes</Text><TextInput keyboardType="number-pad" value={String(rule.dedupe_window_minutes)} onChangeText={v=>onChange({...rule,dedupe_window_minutes:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
-   <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Max / digest</Text><TextInput keyboardType="number-pad" value={String(rule.max_per_digest)} onChangeText={v=>onChange({...rule,max_per_digest:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
+   <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Dedupe minutes</Text><TextInput keyboardType="number-pad" value={String(draft.dedupe_window_minutes)} onChangeText={v=>setDraft({...draft,dedupe_window_minutes:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
+   <View style={{flex:1,gap:5}}><Text style={{fontWeight:'800',color:osColors.ink}}>Max / digest</Text><TextInput keyboardType="number-pad" value={String(draft.max_per_digest)} onChangeText={v=>setDraft({...draft,max_per_digest:Math.max(1,Number(v)||1)})} style={inputStyle}/></View>
   </View>
-  <Pressable onPress={onDelete} disabled={busy}><Text style={{color:osColors.danger,fontWeight:'900'}}>Delete rule</Text></Pressable>
+  <View style={{flexDirection:'row',flexWrap:'wrap',gap:9}}><PrimaryAction label={busy?'Saving…':'Save rule'} onPress={()=>onSave(draft)} disabled={busy}/><Pressable onPress={onDelete} disabled={busy} style={{padding:10}}><Text style={{color:osColors.danger,fontWeight:'900'}}>Delete rule</Text></Pressable></View>
  </View>
 }
 
@@ -58,17 +60,18 @@ export default function EmailNotifications(){
  const[data,setData]=useState<OwnerEmailSnapshot|null>(null),[provider,setProvider]=useState<{provider_configured:boolean;from_address:string}|null>(null);
  const[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null);
  const[recipient,setRecipient]=useState(''),[timezone,setTimezone]=useState('America/Chicago'),[dailyHour,setDailyHour]=useState('8'),[weeklyHour,setWeeklyHour]=useState('8'),[weeklyDow,setWeeklyDow]=useState(1),[maxImmediate,setMaxImmediate]=useState('6');
+ const[providerKey,setProviderKey]=useState(''),[fromAddress,setFromAddress]=useState('Kleenest Owner <onboarding@resend.dev>');
  const[newSource,setNewSource]=useState<string>(''),[newName,setNewName]=useState(''),[newCode,setNewCode]=useState('');
 
  const load=useCallback(async()=>{
   setError(null);
   const [snapshot,status]=await Promise.all([getOwnerEmailNotificationSnapshot(),getOwnerEmailProviderStatus()]);
-  setData(snapshot);setProvider({provider_configured:status.provider_configured,from_address:status.from_address});
+  setData(snapshot);setProvider({provider_configured:status.provider_configured,from_address:status.from_address});setFromAddress(status.from_address||'Kleenest Owner <onboarding@resend.dev>');
   setRecipient(snapshot.settings.recipient_email??'');setTimezone(snapshot.settings.timezone);setDailyHour(String(snapshot.settings.daily_digest_hour));setWeeklyHour(String(snapshot.settings.weekly_digest_hour));setWeeklyDow(snapshot.settings.weekly_digest_dow);setMaxImmediate(String(snapshot.settings.max_immediate_per_hour));
  },[]);
  useEffect(()=>{load().catch(c=>setError(c instanceof Error?c.message:String(c))).finally(()=>setLoading(false))},[load]);
 
- const availableSources=useMemo(()=>sources.filter(([key])=>!data?.rules.some(rule=>rule.source_key===key)),[data?.rules]);
+ const availableSources=useMemo(()=>sources.filter(([key])=>!data?.rules.some(rule=>draft.source_key===key)),[data?.rules]);
  useEffect(()=>{if(!newSource&&availableSources.length){setNewSource(availableSources[0][0]);setNewName(availableSources[0][1]);setNewCode(availableSources[0][0].replaceAll('_','-'));}},[availableSources,newSource]);
 
  async function refresh(){setRefreshing(true);try{await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setRefreshing(false)}}
@@ -85,7 +88,7 @@ export default function EmailNotifications(){
   try{await saveOwnerEmailNotificationRule(next);await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}
  }
  function removeRule(rule:OwnerEmailRule){
-  Alert.alert('Delete email rule?',`${rule.name} will stop producing owner email until the category is added again.`,[
+  Alert.alert('Delete email rule?',`${draft.name} will stop producing owner email until the category is added again.`,[
    {text:'Cancel',style:'cancel'},
    {text:'Delete',style:'destructive',onPress:async()=>{setBusy(true);try{await deleteOwnerEmailNotificationRule(rule.id);await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}}}
   ]);
@@ -98,6 +101,12 @@ export default function EmailNotifications(){
    await saveOwnerEmailNotificationRule({code:newCode.trim(),name:newName.trim(),source_key:newSource,category:meta?.[2]??'Owner',cadence:newSource==='audits'?'weekly':'daily',severity_floor:['security_access','data_integrity','ingestion_storage','economy_anomalies'].includes(newSource)?'warning':'info',enabled:true,noteworthy_immediate:true,dedupe_window_minutes:newSource==='audits'?10080:360,max_per_digest:50});
    setNewSource('');setNewName('');setNewCode('');await load();
   }catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}
+ }
+ async function configureProvider(){
+  if(!providerKey.trim()){setError('Paste a Resend API key to finish email delivery setup.');return;}
+  setBusy(true);setError(null);
+  try{await configureOwnerEmailProvider(providerKey,fromAddress);setProviderKey('');await load();Alert.alert('Email provider connected','Owner operational email delivery is now enabled. You can send a test email from this screen.')}
+  catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}
  }
  async function testEmail(){
   setBusy(true);setError(null);
@@ -122,6 +131,12 @@ export default function EmailNotifications(){
    <HealthCard label="Failed" value={data.queue.failed} tone={data.queue.failed?'danger':'good'} detail="Terminal delivery failures"/>
   </View>
 
+  {!provider?.provider_configured?<ActionSheetCard title="Finish email delivery" body="Signal collection is active and safely queued. Connect a Resend API key here; the key is stored in Supabase Vault and is never returned to the app.">
+   <Text style={{fontWeight:'800',color:osColors.ink}}>Resend API key</Text><TextInput secureTextEntry autoCapitalize="none" value={providerKey} onChangeText={setProviderKey} placeholder="re_…" style={inputStyle}/>
+   <Text style={{fontWeight:'800',color:osColors.ink}}>From address</Text><TextInput autoCapitalize="none" value={fromAddress} onChangeText={setFromAddress} style={inputStyle}/>
+   <PrimaryAction label={busy?'Connecting…':'Connect email provider'} onPress={configureProvider} disabled={busy||!providerKey.trim()}/>
+  </ActionSheetCard>:null}
+
   <ActionSheetCard title="Owner email policy" body="This is separate from consumer/business marketing notifications. It is only for owner operational signals.">
    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}><Text style={{fontWeight:'900',color:osColors.ink}}>Email notifications enabled</Text><Switch value={data.settings.enabled} onValueChange={setGlobal}/></View>
    <Text style={{fontWeight:'800',color:osColors.ink}}>Recipient</Text><TextInput autoCapitalize="none" keyboardType="email-address" value={recipient} onChangeText={setRecipient} style={inputStyle}/>
@@ -138,7 +153,7 @@ export default function EmailNotifications(){
 
   <View style={{gap:9}}>
    <SectionHeader title="Notification rules" body="Everything starts enabled. Routine signals digest; meaningful warning/critical findings can break out immediately. Changes save as you make them."/>
-   {data.rules.map(rule=><RuleCard key={rule.id} rule={rule} busy={busy} onChange={saveRule} onDelete={()=>removeRule(rule)}/>)}
+   {data.rules.map(rule=><RuleCard key={rule.id} rule={rule} busy={busy} onSave={saveRule} onDelete={()=>removeRule(rule)}/>)}
   </View>
 
   {availableSources.length?<ActionSheetCard title="Add a notification rule" body="Create a rule for any supported owner signal source that is not currently configured.">
