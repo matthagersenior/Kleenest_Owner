@@ -1,0 +1,43 @@
+name: Report Owner Automation Outcomes
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+      - Publish KleenestOS OTA Update
+      - Validate Owner Web Preview
+      - Android Standalone APK
+      - Build Owner Play AAB
+      - Publish Standalone Installer
+    types: [completed]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: owner-email-outcome-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: ${{ contains(fromJSON('["failure","timed_out","action_required","startup_failure","stale"]'), github.event.workflow_run.conclusion) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report actionable automation outcome
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          oidc_response="$(curl --fail --silent --show-error             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=kleenest-owner-email")"
+          oidc_token="$(printf '%s' "$oidc_response" | jq -r '.value')"
+          test -n "$oidc_token"
+          test "$oidc_token" != "null"
+
+          payload="$(jq -nc             --arg workflow_name "$WORKFLOW_NAME"             --arg conclusion "$CONCLUSION"             --arg run_id "$RUN_ID"             --arg run_url "$RUN_URL"             --arg head_sha "$HEAD_SHA"             '{mode:"github-event",workflow_name:$workflow_name,conclusion:$conclusion,run_id:$run_id,run_url:$run_url,head_sha:$head_sha}')"
+
+          curl --fail-with-body --silent --show-error             -X POST             -H "Authorization: Bearer $oidc_token"             -H "Content-Type: application/json"             --data "$payload"             https://ssgesjzdvdsqacdtasje.supabase.co/functions/v1/owner-email-notifications
