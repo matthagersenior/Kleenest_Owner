@@ -25,3 +25,33 @@ export async function getOwnerUserCapabilityHistory(userId:string){
   if(error)throw new Error(error.message);
   return data??[];
 }
+
+
+export async function getOwnerUserProgressionRewards(userId:string){
+  await requirePlatformOwner();
+  const {data,error}=await getSupabaseClient().rpc('owner_user_progression_rewards',{p_target_user_id:userId});
+  if(error)throw new Error(error.message);
+  return Array.isArray(data)?data:[];
+}
+
+export async function grantOwnerProgressionReward(userId:string,rewardCode:string,reason:string){
+  await requirePlatformOwner();
+  const {data,error}=await getSupabaseClient().rpc('owner_grant_progression_reward',{
+    p_target_user_id:userId,
+    p_reward_code:rewardCode,
+    p_reason:reason.trim()||'Owner progression reward grant'
+  });
+  if(error)throw new Error(error.message);
+  return data;
+}
+
+export async function revokeOwnerProgressionReward(userId:string,rewardCode:string,reason:string){
+  await requirePlatformOwner();
+  const {data,error}=await getSupabaseClient().rpc('owner_revoke_progression_reward',{
+    p_target_user_id:userId,
+    p_reward_code:rewardCode,
+    p_reason:reason.trim()||'Owner progression reward revoke'
+  });
+  if(error)throw new Error(error.message);
+  return data;
+}
