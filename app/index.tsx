@@ -30,6 +30,7 @@ const primaryRoutes = [
   ['/access', 'People & Access', 'Search users and control roles, subscriptions and admin authority.'],
   ['/businesses', 'Businesses & Network', 'Manage businesses, memberships, locations and Fleet/Enterprise entitlements.'],
   ['/progression', 'Economy', 'Operate XP issuance, evidence tiers, levels, objectives and reward policy.'],
+  ['/creator-missions', 'Creator Missions', 'Create creator assignments, tracking links and QR codes, then control mission activation.'],
   ['/moderation', 'Trust & Moderation', 'Resolve reports and pending trust queues.'],
   ['/operations', 'Operations', 'Control ingestion and inspect integrity, delivery and backend health.'],
 ] as const;
