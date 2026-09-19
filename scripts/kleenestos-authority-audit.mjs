@@ -35,6 +35,9 @@ const moderationUi=read('app/moderation.tsx');
 const operationsUi=read('app/operations.tsx');
 const layout=read('app/_layout.tsx');
 const os=read('src/components/KleenestOS.tsx');
+const ownerUi=read('src/components/OwnerUI.tsx');
+const ownerTheme=read('src/services/theme.ts');
+const ownerAuth=read('app/auth.tsx');
 
 for(const token of ['admin_authorization_v1','getOwnerAuthorization','requirePlatformOwner','platform_owner'])must(auth.includes(token),`Owner authorization missing ${token}`);
 for(const token of ['admin_user_search','searchOwnerUsers'])must((search+people).includes(token),`People search missing ${token}`);
@@ -51,6 +54,11 @@ for(const token of ['getOwnerModerationQueues','resolveOwnerReviewReport'])must(
 for(const token of ['getOwnerOperationsSnapshot','setIngestionResumeAuthorization'])must(operationsUi.includes(token),`Operations UI missing ${token}`);
 for(const route of ['businesses','moderation'])must(layout.includes(`name="${route}"`),`Owner route not registered: ${route}`);
 for(const token of ['OSHero','HealthCard','StatusPill','SectionHeader','DiagnosticDisclosure'])must(os.includes(token),`KleenestOS component library missing ${token}`);
+for(const token of ['sceneStyle:{backgroundColor:theme.canvas}','headerStyle:{backgroundColor:theme.canvas}','tabBarStyle'])must(layout.replace(/\s+/g,'').includes(token.replace(/\s+/g,'')),`Owner shell theme coverage missing ${token}`);
+for(const token of ['useOwnerTheme','backgroundColor:theme.canvas','storageGuardSummary'])must(operationsUi.includes(token),`Operations theme/runtime polish missing ${token}`);
+for(const token of ['getResolvedOwnerTheme','useOwnerTheme','surfaceRaised','borderColor:t.line'])must(ownerUi.includes(token),`Legacy Owner UI must resolve live theme token ${token}`);
+for(const token of ['useOwnerTheme','backgroundColor:theme.canvas','backgroundColor:theme.surface','backgroundColor:theme.accent','placeholderTextColor={theme.muted}'])must(ownerAuth.includes(token),`Owner authentication theme coverage missing ${token}`);
+must(ownerTheme.includes("'halloween'")&&ownerTheme.includes("'christmas'")&&ownerTheme.includes("'verified-gold'"),'Owner theme registry must retain reward and seasonal editions');
 for(const file of ['app/index.tsx','app/access.tsx','app/businesses.tsx','app/progression.tsx','app/moderation.tsx','app/operations.tsx']){
   const source=read(file);
   must(!source.includes('JSON.stringify('),`${file} must not use raw JSON as primary UX`);
