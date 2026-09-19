@@ -32,6 +32,7 @@ export default function RootLayout(){
   <StatusBar style={theme.statusBar}/>
   <Tabs screenOptions={{
     headerStyle:{backgroundColor:theme.canvas},
+    sceneStyle:{backgroundColor:theme.canvas},
     headerShadowVisible:false,
     headerTitleStyle:{color:theme.ink,fontWeight:'900'},
     tabBarActiveTintColor:theme.accent,
