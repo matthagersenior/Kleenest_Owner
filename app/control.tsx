@@ -7,6 +7,7 @@ const routes=[
  ['/businesses','Businesses & Network','Locations, memberships, verification and entitlements.'],
  ['/progression','Economy & Progression','XP, levels, objectives, rewards and progression policy.'],
  ['/creator-missions','Creator Missions','Creator assignments, tracking links and mission QR codes.'],
+ ['/sponsored-ads','Sponsored Advertising','Campaign approval, placement CRUD, serving controls and performance.'],
  ['/moderation','Trust & Moderation','Reports, safety and trust queues.'],
  ['/email-notifications','Email Notifications','Operational alerts, digests, audits and delivery history.'],
  ['/audit','System Audit','Capability and owner activity audits.'],
