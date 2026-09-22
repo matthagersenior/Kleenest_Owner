@@ -35,7 +35,7 @@ const primaryRoutes = [
   ['/sponsored-ads', 'Sponsored Advertising', 'Approve business campaigns, create Kleenest campaigns, control placements, serving and performance.'],
   ['/moderation', 'Trust & Moderation', 'Resolve reports and pending trust queues.'],
   ['/operations', 'Operations', 'Control ingestion and inspect integrity, delivery and backend health.'],
-  ['/email-notifications', 'Email Notifications', 'Control owner operational email, escalation, digest cadence, dedupe and delivery history.'],
+  ['/email-notifications', 'Email Alert Settings', 'Control operational alert rules, escalation, digest cadence, dedupe and delivery history.'],
 ] as const;
 
 const platformRoutes = [
@@ -178,7 +178,7 @@ export default function KleenestOSCommandCenter() {
     <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
       <Link href="/search" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: theme.accent, borderColor: theme.accent }}><Text style={{ color: theme.accentText, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>FIND ANYTHING</Text><Text style={{ color: theme.accentText, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Search KleenestOS →</Text><Text style={{ color: theme.accentText, marginTop: 4 }}>Controls, people, businesses, settings and operations.</Text></Pressable></Link>
       <Link href="/account" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150 }}><Text style={{ color: osColors.green, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER PROFILE</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Profile & Themes →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Identity, appearance and all Owner theme options.</Text></Pressable></Link>
-      <Link href="/email-notifications" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: theme.surfaceRaised, borderColor: theme.warning }}><Text style={{ color: theme.warning, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER ALERTS</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Email Notifications →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Immediate alerts, digests, audit cadence and delivery history.</Text></Pressable></Link>
+      <Link href="/communications" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: theme.surfaceRaised, borderColor: theme.accent }}><Text style={{ color: theme.accent, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER EMAIL</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Email Dashboard & Inbox →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Read Gmail, search conversations, reply, archive and manage unread mail.</Text></Pressable></Link>
     </View>
 
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
