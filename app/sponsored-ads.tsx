@@ -14,7 +14,7 @@ const num=(v:string,fallback=0)=>{const n=Number(v);return Number.isFinite(n)?n:
 
 function Action({label,onPress,disabled=false}:{label:string;onPress:()=>void;disabled?:boolean}){
   const theme=useOwnerTheme();
-  return <Pressable disabled={disabled} onPress={onPress} style={{backgroundColor:disabled?theme.surfaceRaised:theme.accent,borderRadius:999,paddingHorizontal:12,paddingVertical:10,opacity:disabled?.55:1}}>
+  return <Pressable disabled={disabled} onPress={onPress} style={{backgroundColor:disabled?theme.surfaceRaised:theme.accent,borderRadius:999,paddingHorizontal:12,paddingVertical:10,opacity:disabled?0.55:1}}>
     <Text style={{fontWeight:'900',color:disabled?theme.muted:theme.accentText}}>{label}</Text>
   </Pressable>;
 }
