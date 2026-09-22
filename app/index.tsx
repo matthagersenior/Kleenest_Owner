@@ -32,6 +32,7 @@ const primaryRoutes = [
   ['/businesses', 'Businesses & Network', 'Manage businesses, memberships, locations and Fleet/Enterprise entitlements.'],
   ['/progression', 'Economy', 'Operate XP issuance, evidence tiers, levels, objectives and reward policy.'],
   ['/creator-missions', 'Creator Missions', 'Create creator assignments, tracking links and QR codes, then control mission activation.'],
+  ['/sponsored-ads', 'Sponsored Advertising', 'Approve business campaigns, create Kleenest campaigns, control placements, serving and performance.'],
   ['/moderation', 'Trust & Moderation', 'Resolve reports and pending trust queues.'],
   ['/operations', 'Operations', 'Control ingestion and inspect integrity, delivery and backend health.'],
   ['/email-notifications', 'Email Notifications', 'Control owner operational email, escalation, digest cadence, dedupe and delivery history.'],
