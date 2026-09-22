@@ -130,10 +130,33 @@ export default function SponsoredAds(){
     </View>
 
     <View style={{gap:9}}>
-      <SectionHeader title="Sponsored inventory" body="Every configured placement and its serving state."/>
-      {placements.map(p=><Pressable key={p.placement_code} onPress={()=>editPlacement(p)} style={{...osCard,gap:4,backgroundColor:theme.surface}}>
-        <Text style={{fontWeight:'900',fontSize:16,color:theme.ink}}>{human(p.placement_code)}</Text><Text style={{color:theme.muted}}>{p.surface} · {p.slot} · priority {p.priority} · cap {p.frequency_cap_daily}/day</Text><Text style={{color:p.active&&p.owner_enabled?theme.accent:theme.warning,fontWeight:'900'}}>{p.active&&p.owner_enabled?'SERVING-ELIGIBLE':'DISABLED'} · tap to edit</Text>
-      </Pressable>)}
+      <SectionHeader title="Sponsored inventory" body="Every configured placement and its serving state. Tap Edit placement to open the controls directly under that placement."/>
+      {placements.map(p=>{const editing=placementCode===p.placement_code;return <View key={p.placement_code} style={{gap:8}}>
+        <View style={{...osCard,gap:8,backgroundColor:theme.surface}}>
+          <Text style={{fontWeight:'900',fontSize:16,color:theme.ink}}>{human(p.placement_code)}</Text>
+          <Text style={{color:theme.muted}}>{p.surface} · {p.slot} · priority {p.priority} · cap {p.frequency_cap_daily}/day</Text>
+          <Text style={{color:p.active&&p.owner_enabled?theme.accent:theme.warning,fontWeight:'900'}}>{p.active&&p.owner_enabled?'SERVING-ELIGIBLE':'DISABLED'}</Text>
+          <View style={{flexDirection:'row',gap:7,flexWrap:'wrap'}}>
+            <Action label={editing?'Editing placement':'Edit placement'} onPress={()=>editing?resetPlacement():editPlacement(p)} disabled={busy}/>
+          </View>
+        </View>
+        {editing?<View style={{...osCard,gap:10,backgroundColor:theme.surfaceRaised,borderColor:theme.accent}}>
+          <Text style={{fontWeight:'900',fontSize:16,color:theme.ink}}>Editing {human(p.placement_code)}</Text>
+          <Field label="Placement code" value={placementCode} set={setPlacementCode} placeholder="explore_results_inline"/>
+          <Field label="Surface" value={surface} set={setSurface} placeholder="explore"/>
+          <Field label="Slot" value={slot} set={setSlot} placeholder="results_inline"/>
+          <Field label="Format" value={format} set={setFormat}/>
+          <Field label="Priority" value={placementPriority} set={setPlacementPriority}/>
+          <Field label="Frequency cap / day" value={placementFrequency} set={setPlacementFrequency}/>
+          <Field label="Context rules JSON" value={contextRules} set={setContextRules} multiline/>
+          <View style={{flexDirection:'row',gap:7,flexWrap:'wrap'}}>
+            <Action label={placementActive?'✓ Active':'Inactive'} onPress={()=>setPlacementActive(v=>!v)}/>
+            <Action label={ownerEnabled?'✓ Owner enabled':'Owner disabled'} onPress={()=>setOwnerEnabled(v=>!v)}/>
+            <Action label="Save changes" onPress={savePlacement} disabled={busy}/>
+            <Action label="Cancel" onPress={resetPlacement}/>
+          </View>
+        </View>:null}
+      </View>})}
     </View>
   </ScrollView>;
 }
