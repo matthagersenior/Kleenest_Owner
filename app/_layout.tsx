@@ -63,6 +63,7 @@ export default function RootLayout(){
     <Tabs.Screen name="intelligence" options={{href:null,title:'Intelligence Lab'}}/>
     <Tabs.Screen name="reports" options={{href:null,title:'Reporting'}}/>
     <Tabs.Screen name="email-notifications" options={{href:null,title:'Email Notifications'}}/>
+    <Tabs.Screen name="sponsored-ads" options={{href:null,title:'Sponsored Advertising'}}/>
     <Tabs.Screen name="data" options={{href:null,title:'Data Workbench'}}/>
   </Tabs>
  </>;
