@@ -1,10 +1,10 @@
 import { useCallback,useEffect,useMemo,useState } from 'react';
-import { ActivityIndicator,Pressable,RefreshControl,ScrollView,Text,TextInput,View } from 'react-native';
+import { ActivityIndicator,Image,Pressable,RefreshControl,ScrollView,Text,TextInput,View } from 'react-native';
 import { OSHero,SectionHeader,StatusPill,osCard } from '@/components/KleenestOS';
 import {
-  archiveOwnerSponsoredCampaign,getOwnerSponsorshipSnapshot,reviewOwnerSponsoredCampaign,
-  saveOwnerAdPlacement,saveOwnerSponsoredCampaign,setOwnerSponsoredServing,
-  type OwnerAdPlacement,type OwnerSponsoredCampaign,type OwnerSponsorshipSnapshot
+  archiveOwnerSponsoredCampaign,chooseOwnerSponsoredCreative,getOwnerSponsorshipSnapshot,reviewOwnerSponsoredCampaign,
+  saveOwnerAdPlacement,saveOwnerSponsoredCampaign,setOwnerSponsoredServing,uploadOwnerSponsoredCreative,
+  type OwnerAdPlacement,type OwnerSponsoredCampaign,type OwnerSponsoredCreativeDraft,type OwnerSponsorshipSnapshot
 } from '@/services/ownerSponsorship';
 import { useOwnerTheme } from '@/services/theme';
 
@@ -30,6 +30,7 @@ export default function SponsoredAds(){
 
   const[editingCampaign,setEditingCampaign]=useState<string|null>(null),[name,setName]=useState(''),[sponsor,setSponsor]=useState('Kleenest'),[headline,setHeadline]=useState(''),[body,setBody]=useState(''),[cta,setCta]=useState('Learn more'),[url,setUrl]=useState('');
   const[status,setStatus]=useState<'draft'|'active'|'paused'|'ended'>('draft'),[startsAt,setStartsAt]=useState(''),[endsAt,setEndsAt]=useState(''),[placementCodes,setPlacementCodes]=useState('');
+  const[creativeMode,setCreativeMode]=useState<'text_only'|'image_text'|'image_only'>('text_only'),[imageUrl,setImageUrl]=useState(''),[imageAlt,setImageAlt]=useState(''),[logoUrl,setLogoUrl]=useState(''),[pickedImage,setPickedImage]=useState<OwnerSponsoredCreativeDraft|null>(null);
   const[region,setRegion]=useState(''),[route,setRoute]=useState(''),[amenities,setAmenities]=useState(''),[timeBucket,setTimeBucket]=useState(''),[interests,setInterests]=useState('');
   const[frequency,setFrequency]=useState('2'),[impressionCap,setImpressionCap]=useState(''),[priority,setPriority]=useState('0');
 
@@ -49,17 +50,20 @@ export default function SponsoredAds(){
 
   const targeting=useMemo(()=>{const t:Record<string,unknown>={};if(region.trim())t.coarse_region=region.trim();if(route.trim())t.route_context=route.trim();if(csv(amenities).length)t.amenities=csv(amenities);if(timeBucket.trim())t.time_bucket=timeBucket.trim();if(csv(interests).length)t.broad_interests=csv(interests);return t},[region,route,amenities,timeBucket,interests]);
 
-  function resetCampaign(){setEditingCampaign(null);setName('');setSponsor('Kleenest');setHeadline('');setBody('');setCta('Learn more');setUrl('');setStatus('draft');setStartsAt('');setEndsAt('');setPlacementCodes('');setRegion('');setRoute('');setAmenities('');setTimeBucket('');setInterests('');setFrequency('2');setImpressionCap('');setPriority('0')}
-  function editCampaign(c:OwnerSponsoredCampaign){setEditingCampaign(c.id);setName(c.name||'');setSponsor(c.sponsor_name||'');setHeadline(c.headline||'');setBody(c.body||'');setCta(c.cta_label||'Learn more');setUrl(c.destination_url||'');setStatus(c.status);setStartsAt(c.starts_at||'');setEndsAt(c.ends_at||'');setPlacementCodes((c.placements||[]).join(', '));const t=c.targeting||{};setRegion(String(t.coarse_region||''));setRoute(String(t.route_context||''));setAmenities(Array.isArray(t.amenities)?t.amenities.join(', '):'');setTimeBucket(String(t.time_bucket||''));setInterests(Array.isArray(t.broad_interests)?t.broad_interests.join(', '):'');setFrequency(String(c.frequency_cap_daily??2));setImpressionCap(c.impression_cap_total==null?'':String(c.impression_cap_total));setPriority(String(c.owner_priority??0))}
+  function resetCampaign(){setEditingCampaign(null);setName('');setSponsor('Kleenest');setHeadline('');setBody('');setCta('Learn more');setUrl('');setStatus('draft');setStartsAt('');setEndsAt('');setPlacementCodes('');setCreativeMode('text_only');setImageUrl('');setImageAlt('');setLogoUrl('');setPickedImage(null);setRegion('');setRoute('');setAmenities('');setTimeBucket('');setInterests('');setFrequency('2');setImpressionCap('');setPriority('0')}
+  function editCampaign(c:OwnerSponsoredCampaign){setEditingCampaign(c.id);setName(c.name||'');setSponsor(c.sponsor_name||'');setHeadline(c.headline||'');setBody(c.body||'');setCta(c.cta_label||'Learn more');setUrl(c.destination_url||'');setStatus(c.status);setStartsAt(c.starts_at||'');setEndsAt(c.ends_at||'');setPlacementCodes((c.placements||[]).join(', '));setCreativeMode(c.creative_mode||'text_only');setImageUrl(c.image_url||'');setImageAlt(c.image_alt||'');setLogoUrl(c.logo_url||'');setPickedImage(null);const t=c.targeting||{};setRegion(String(t.coarse_region||''));setRoute(String(t.route_context||''));setAmenities(Array.isArray(t.amenities)?t.amenities.join(', '):'');setTimeBucket(String(t.time_bucket||''));setInterests(Array.isArray(t.broad_interests)?t.broad_interests.join(', '):'');setFrequency(String(c.frequency_cap_daily??2));setImpressionCap(c.impression_cap_total==null?'':String(c.impression_cap_total));setPriority(String(c.owner_priority??0))}
   async function saveCampaign(){
     if(!name.trim()||!sponsor.trim()||!headline.trim()||!url.trim()||!csv(placementCodes).length){setMessage('Campaign name, sponsor, headline, HTTPS destination and at least one placement are required.');return}
+    if(creativeMode!=='text_only'&&!pickedImage&&!imageUrl.trim()){setMessage('Choose an image or enter an HTTPS image URL for this creative mode.');return}
+    if((pickedImage||imageUrl.trim())&&!imageAlt.trim()){setMessage('Add image alt text so the sponsored creative is accessible.');return}
     setBusy(true);try{
-      await saveOwnerSponsoredCampaign({id:editingCampaign,name:name.trim(),sponsorName:sponsor.trim(),headline:headline.trim(),body:body.trim(),ctaLabel:cta.trim()||'Learn more',destinationUrl:url.trim(),status,startsAt:startsAt.trim()||null,endsAt:endsAt.trim()||null,targeting,frequencyCapDaily:num(frequency,2),impressionCapTotal:impressionCap.trim()?num(impressionCap):null,ownerPriority:num(priority),placementCodes:csv(placementCodes),reason});
+      const resolvedImage=pickedImage?await uploadOwnerSponsoredCreative(pickedImage):imageUrl.trim()||null;
+      await saveOwnerSponsoredCampaign({id:editingCampaign,name:name.trim(),sponsorName:sponsor.trim(),headline:headline.trim(),body:body.trim(),ctaLabel:cta.trim()||'Learn more',destinationUrl:url.trim(),status,startsAt:startsAt.trim()||null,endsAt:endsAt.trim()||null,targeting,frequencyCapDaily:num(frequency,2),impressionCapTotal:impressionCap.trim()?num(impressionCap):null,ownerPriority:num(priority),placementCodes:csv(placementCodes),creativeMode,imageUrl:resolvedImage,imageAlt:resolvedImage?imageAlt.trim():null,logoUrl:logoUrl.trim()||null,reason});
       setMessage(editingCampaign?'Campaign updated.':'Owner campaign created.');resetCampaign();await load();
     }catch(e){setMessage(e instanceof Error?e.message:String(e))}finally{setBusy(false)}
   }
   async function lifecycle(c:OwnerSponsoredCampaign,next:'active'|'paused'|'ended'){
-    setBusy(true);try{await saveOwnerSponsoredCampaign({id:c.id,name:c.name,sponsorName:c.sponsor_name,headline:c.headline,body:c.body||'',ctaLabel:c.cta_label,destinationUrl:c.destination_url,targetLocationId:c.target_location_id,status:next,startsAt:c.starts_at,endsAt:c.ends_at,targeting:c.targeting||{},frequencyCapDaily:c.frequency_cap_daily,impressionCapTotal:c.impression_cap_total,ownerPriority:c.owner_priority,placementCodes:c.placements||[],reason});setMessage(`Campaign ${next}.`);await load()}catch(e){setMessage(e instanceof Error?e.message:String(e))}finally{setBusy(false)}
+    setBusy(true);try{await saveOwnerSponsoredCampaign({id:c.id,name:c.name,sponsorName:c.sponsor_name,headline:c.headline,body:c.body||'',ctaLabel:c.cta_label,destinationUrl:c.destination_url,targetLocationId:c.target_location_id,status:next,startsAt:c.starts_at,endsAt:c.ends_at,targeting:c.targeting||{},frequencyCapDaily:c.frequency_cap_daily,impressionCapTotal:c.impression_cap_total,ownerPriority:c.owner_priority,placementCodes:c.placements||[],creativeMode:c.creative_mode||'text_only',imageUrl:c.image_url||null,imageAlt:c.image_alt||null,logoUrl:c.logo_url||null,reason});setMessage(`Campaign ${next}.`);await load()}catch(e){setMessage(e instanceof Error?e.message:String(e))}finally{setBusy(false)}
   }
   async function review(c:OwnerSponsoredCampaign,decision:'approve'|'reject'){
     setBusy(true);try{await reviewOwnerSponsoredCampaign(c.id,decision,reviewNote,reason);setMessage(decision==='approve'?'Campaign approved and activated.':'Campaign rejected for revision.');setReviewNote('');await load()}catch(e){setMessage(e instanceof Error?e.message:String(e))}finally{setBusy(false)}
@@ -106,6 +110,13 @@ export default function SponsoredAds(){
     <View style={{...osCard,gap:10,backgroundColor:theme.surface}}>
       <SectionHeader title={editingCampaign?'Edit sponsored campaign':'Create Owner campaign'} body="Create Kleenest-managed inventory or override an existing campaign. Use archive instead of destructive deletion once a campaign has history."/>
       <Field label="Campaign name" value={name} set={setName}/><Field label="Sponsor name" value={sponsor} set={setSponsor}/><Field label="Headline" value={headline} set={setHeadline}/><Field label="Body" value={body} set={setBody} multiline/><Field label="CTA" value={cta} set={setCta}/><Field label="HTTPS destination URL" value={url} set={setUrl}/>
+      <Text style={{fontWeight:'900',color:theme.ink}}>Ad creative</Text>
+      <View style={{flexDirection:'row',gap:7,flexWrap:'wrap'}}>{(['text_only','image_text','image_only'] as const).map(v=><Action key={v} label={creativeMode===v?`✓ ${human(v)}`:human(v)} onPress={()=>setCreativeMode(v)}/>)}</View>
+      <View style={{flexDirection:'row',gap:8,flexWrap:'wrap'}}><Action label={pickedImage?'Change image':'Choose & crop image'} onPress={async()=>{try{const asset=await chooseOwnerSponsoredCreative();if(asset){setPickedImage(asset);setImageUrl('');if(creativeMode==='text_only')setCreativeMode('image_text')}}catch(e){setMessage(e instanceof Error?e.message:String(e))}} disabled={busy}/>{(pickedImage||imageUrl)?<Action label="Remove image" onPress={()=>{setPickedImage(null);setImageUrl('');setImageAlt('');setCreativeMode('text_only')}}/>:null}</View>
+      <Field label="Image URL (optional alternative to upload)" value={imageUrl} set={v=>{setImageUrl(v);if(v.trim())setPickedImage(null)}} placeholder="https://…"/>
+      <Field label="Image alt text" value={imageAlt} set={setImageAlt} placeholder="Describe the sponsored image"/>
+      <Field label="Sponsor logo URL (optional)" value={logoUrl} set={setLogoUrl} placeholder="https://…"/>
+      {(pickedImage?.uri||imageUrl.trim())?<Image source={{uri:pickedImage?.uri||imageUrl.trim()}} accessibilityLabel={imageAlt||'Sponsored creative preview'} resizeMode="cover" style={{width:'100%',aspectRatio:16/9,borderRadius:14,backgroundColor:theme.surfaceRaised}}/>:null}
       <Text style={{fontWeight:'900',color:theme.ink}}>Status</Text><View style={{flexDirection:'row',gap:7,flexWrap:'wrap'}}>{(['draft','active','paused','ended'] as const).map(v=><Action key={v} label={status===v?`✓ ${human(v)}`:human(v)} onPress={()=>setStatus(v)}/>)}</View>
       <Field label="Start ISO timestamp (optional)" value={startsAt} set={setStartsAt} placeholder="2026-09-22T12:00:00-05:00"/><Field label="End ISO timestamp (optional)" value={endsAt} set={setEndsAt}/><Field label="Placement codes (comma-separated)" value={placementCodes} set={setPlacementCodes} placeholder="explore_results_inline, progress_inline"/>
       <Text style={{fontWeight:'900',color:theme.ink}}>Contextual targeting</Text><Field label="Coarse region" value={region} set={setRegion}/><Field label="Route context" value={route} set={setRoute}/><Field label="Amenities" value={amenities} set={setAmenities}/><Field label="Time bucket" value={timeBucket} set={setTimeBucket}/><Field label="Broad interests" value={interests} set={setInterests}/>
@@ -117,7 +128,8 @@ export default function SponsoredAds(){
       <SectionHeader title="All active records" body="Owner can edit, pause, reactivate, end, or archive any campaign across the network."/>
       {campaigns.map(c=>{const ctr=c.impressions>0?((c.clicks/c.impressions)*100).toFixed(1):'0.0';return <View key={c.id} style={{...osCard,gap:6,backgroundColor:theme.surface}}>
         <View style={{flexDirection:'row',justifyContent:'space-between',gap:10}}><View style={{flex:1}}><Text style={{fontSize:17,fontWeight:'900',color:theme.ink}}>{c.headline}</Text><Text style={{color:theme.muted}}>{c.business_name||c.sponsor_name} · {human(c.submission_status)} · {human(c.status)}</Text></View><StatusPill label={c.status.toUpperCase()} tone={c.status==='active'?'good':c.status==='paused'?'warning':undefined}/></View>
-        <Text style={{color:theme.muted}}>{c.impressions||0} impressions · {c.clicks||0} clicks · {c.dismissals||0} dismissals · {ctr}% CTR</Text>
+        {c.image_url&&c.creative_mode!=='text_only'?<Image source={{uri:c.image_url}} accessibilityLabel={c.image_alt||`${c.sponsor_name} sponsored image`} resizeMode="cover" style={{width:'100%',aspectRatio:16/9,borderRadius:12,backgroundColor:theme.surfaceRaised}}/>:null}
+        <Text style={{color:theme.muted}}>{human(c.creative_mode||'text_only')} · {c.impressions||0} impressions · {c.clicks||0} clicks · {c.dismissals||0} dismissals · {ctr}% CTR</Text>
         {c.review_note?<Text style={{color:theme.muted}}>Review note: {c.review_note}</Text>:null}
         <View style={{flexDirection:'row',gap:7,flexWrap:'wrap'}}><Action label="Edit" onPress={()=>editCampaign(c)}/>{c.status!=='active'?<Action label="Activate" onPress={()=>lifecycle(c,'active')}/>:<Action label="Pause" onPress={()=>lifecycle(c,'paused')}/>}<Action label="End" onPress={()=>lifecycle(c,'ended')}/><Action label="Archive" onPress={()=>archive(c)}/></View>
       </View>})}
