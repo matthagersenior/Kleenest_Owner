@@ -1,3 +1,4 @@
+import * as ImagePicker from 'expo-image-picker';
 import { getSupabaseClient } from '@/lib/supabase';
 
 const client=()=>getSupabaseClient();
@@ -43,6 +44,10 @@ export type OwnerSponsoredCampaign={
   impressions:number;
   clicks:number;
   dismissals:number;
+  creative_mode:'text_only'|'image_text'|'image_only';
+  image_url?:string|null;
+  image_alt?:string|null;
+  logo_url?:string|null;
 };
 
 export type OwnerSponsorshipSnapshot={
@@ -84,6 +89,7 @@ export function saveOwnerSponsoredCampaign(input:{
   destinationUrl:string;targetLocationId?:string|null;status:'draft'|'active'|'paused'|'ended';
   startsAt?:string|null;endsAt?:string|null;targeting:Record<string,unknown>;
   frequencyCapDaily:number;impressionCapTotal?:number|null;ownerPriority:number;placementCodes:string[];reason:string;
+  creativeMode?:'text_only'|'image_text'|'image_only';imageUrl?:string|null;imageAlt?:string|null;logoUrl?:string|null;
 }){
   return rpc('owner_upsert_sponsored_campaign',{
     p_campaign_id:input.id??null,
@@ -102,6 +108,10 @@ export function saveOwnerSponsoredCampaign(input:{
     p_impression_cap_total:input.impressionCapTotal??null,
     p_owner_priority:input.ownerPriority,
     p_placement_codes:input.placementCodes,
+    p_creative_mode:input.creativeMode??'text_only',
+    p_image_url:input.imageUrl??null,
+    p_image_alt:input.imageAlt??null,
+    p_logo_url:input.logoUrl??null,
     p_reason:input.reason,
   });
 }
@@ -114,4 +124,32 @@ export function reviewOwnerSponsoredCampaign(campaignId:string,decision:'approve
 
 export function archiveOwnerSponsoredCampaign(campaignId:string,reason:string){
   return rpc('owner_archive_sponsored_campaign',{p_campaign_id:campaignId,p_reason:reason});
+}
+
+
+export type OwnerSponsoredCreativeDraft={uri:string;fileName:string|null;mimeType:string|null;fileSize:number|null;width:number|null;height:number|null};
+const MAX_SPONSORED_CREATIVE_BYTES=5*1024*1024;
+function extensionForCreative(asset:OwnerSponsoredCreativeDraft){
+  const ext=asset.fileName?.split('.').pop()?.toLowerCase();
+  if(ext&&['jpg','jpeg','png','webp'].includes(ext))return ext==='jpeg'?'jpg':ext;
+  if(asset.mimeType==='image/png')return'png';
+  if(asset.mimeType==='image/webp')return'webp';
+  return'jpg';
+}
+export async function chooseOwnerSponsoredCreative():Promise<OwnerSponsoredCreativeDraft|null>{
+  const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,aspect:[16,9],quality:.86});
+  if(result.canceled||!result.assets?.length)return null;
+  const asset=result.assets[0];
+  return {uri:asset.uri,fileName:asset.fileName||null,mimeType:asset.mimeType||null,fileSize:asset.fileSize??null,width:Number.isFinite(asset.width)?asset.width:null,height:Number.isFinite(asset.height)?asset.height:null};
+}
+export async function uploadOwnerSponsoredCreative(asset:OwnerSponsoredCreativeDraft){
+  if(asset.fileSize!=null&&asset.fileSize>MAX_SPONSORED_CREATIVE_BYTES)throw new Error('Sponsored images must be 5 MB or smaller.');
+  const response=await fetch(asset.uri);if(!response.ok)throw new Error('The selected sponsored image could not be read.');
+  const bytes=await response.arrayBuffer();if(bytes.byteLength>MAX_SPONSORED_CREATIVE_BYTES)throw new Error('Sponsored images must be 5 MB or smaller.');
+  const {data:auth,error:authError}=await client().auth.getUser();if(authError)throw authError;if(!auth.user)throw new Error('Sign in to upload sponsored creative.');
+  const ext=extensionForCreative(asset);
+  const contentType=asset.mimeType||(ext==='png'?'image/png':ext==='webp'?'image/webp':'image/jpeg');
+  const path=`owner/${auth.user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const {error}=await client().storage.from('sponsored-ad-creatives').upload(path,bytes,{contentType,upsert:false});if(error)throw error;
+  return client().storage.from('sponsored-ad-creatives').getPublicUrl(path).data.publicUrl;
 }
