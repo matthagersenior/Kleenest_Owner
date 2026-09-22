@@ -30,10 +30,10 @@
     },
     "production": {
       "autoIncrement": true,
-      "channel": "owner-production",
+      "channel": "owner-legacy-retired",
       "env": {
         "EAS_PROJECT_ID": "9b5527b5-c8b1-47c1-a961-3e2d5e549a62",
-        "EXPO_PUBLIC_OTA_CHANNEL": "owner-production"
+        "EXPO_PUBLIC_OTA_CHANNEL": "owner-legacy-retired"
       },
       "android": {
         "buildType": "app-bundle"
