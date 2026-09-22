@@ -132,7 +132,7 @@ export default function SponsoredAds(){
     <View style={{gap:9}}>
       <SectionHeader title="Sponsored inventory" body="Every configured placement and its serving state."/>
       {placements.map(p=><Pressable key={p.placement_code} onPress={()=>editPlacement(p)} style={{...osCard,gap:4,backgroundColor:theme.surface}}>
-        <Text style={{fontWeight:'900',fontSize:16,color:theme.ink}}>{human(p.placement_code)}</Text><Text style={{color:theme.muted}}>{p.surface} · {p.slot} · priority {p.priority} · cap {p.frequency_cap_daily}/day</Text><Text style={{color:p.active&&p.owner_enabled?theme.good:theme.warning,fontWeight:'900'}}>{p.active&&p.owner_enabled?'SERVING-ELIGIBLE':'DISABLED'} · tap to edit</Text>
+        <Text style={{fontWeight:'900',fontSize:16,color:theme.ink}}>{human(p.placement_code)}</Text><Text style={{color:theme.muted}}>{p.surface} · {p.slot} · priority {p.priority} · cap {p.frequency_cap_daily}/day</Text><Text style={{color:p.active&&p.owner_enabled?theme.accent:theme.warning,fontWeight:'900'}}>{p.active&&p.owner_enabled?'SERVING-ELIGIBLE':'DISABLED'} · tap to edit</Text>
       </Pressable>)}
     </View>
   </ScrollView>;
