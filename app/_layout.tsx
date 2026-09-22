@@ -45,10 +45,11 @@ export default function RootLayout(){
     </View>
   }}>
     <Tabs.Screen name="index" options={{title:'Home',tabBarIcon:({color})=><TabIcon symbol="⌂" color={color}/>}}/>
+    <Tabs.Screen name="communications" options={{title:'Email',tabBarIcon:({color})=><TabIcon symbol="✉" color={color}/>}}/>
     <Tabs.Screen name="control" options={{title:'Control',tabBarIcon:({color})=><TabIcon symbol="◈" color={color}/>}}/>
     <Tabs.Screen name="pilots" options={{title:'Pilots',tabBarIcon:({color})=><TabIcon symbol="◆" color={color}/>}}/>
-    <Tabs.Screen name="developer" options={{title:'Developer',tabBarIcon:({color})=><TabIcon symbol="⌘" color={color}/>}}/>
-    <Tabs.Screen name="operations" options={{title:'Operations',tabBarIcon:({color})=><TabIcon symbol="⚙" color={color}/>}}/>
+    <Tabs.Screen name="developer" options={{title:'Developer',tabBarLabel:'Dev',tabBarIcon:({color})=><TabIcon symbol="⌘" color={color}/>}}/>
+    <Tabs.Screen name="operations" options={{title:'Operations',tabBarLabel:'Ops',tabBarIcon:({color})=><TabIcon symbol="⚙" color={color}/>}}/>
 
     <Tabs.Screen name="account" options={{href:null,title:'Profile & Themes'}}/>
     <Tabs.Screen name="search" options={{href:null,title:'Search'}}/>
