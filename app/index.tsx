@@ -64,6 +64,19 @@ function compactBytes(value: unknown) {
   if (mb < 1024) return `${mb.toFixed(mb >= 100 ? 0 : 1)} MB`;
   return `${(mb / 1024).toFixed(2)} GB`;
 }
+function errorMessage(reason: unknown) {
+  if (reason instanceof Error) return reason.message;
+  if (reason && typeof reason === 'object') {
+    const value = reason as Record<string, unknown>;
+    const parts = ['message', 'details', 'hint', 'code']
+      .map(key => value[key])
+      .filter(item => item != null && String(item).trim())
+      .map(String);
+    if (parts.length) return parts.join(' · ');
+    try { return JSON.stringify(reason); } catch { /* fall through */ }
+  }
+  return String(reason);
+}
 
 function AttentionCard({ item }: { item: AttentionItem }) {
   const theme=useOwnerTheme();
@@ -118,7 +131,7 @@ export default function KleenestOSCommandCenter() {
     const value = (index: number) => {
       const result = settled[index];
       if (result.status === 'fulfilled') return result.value;
-      nextErrors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+      nextErrors.push(errorMessage(result.reason));
       return null;
     };
     setState({ authorization, economy: value(0), moderation: value(1), operations: value(2), history: value(3) });
@@ -126,7 +139,7 @@ export default function KleenestOSCommandCenter() {
   }, []);
 
   useEffect(() => {
-    load().catch(cause => setErrors([cause instanceof Error ? cause.message : String(cause)])).finally(() => setLoading(false));
+    load().catch(cause => setErrors([errorMessage(cause)])).finally(() => setLoading(false));
   }, [load]);
 
   async function refresh() {
@@ -167,6 +180,9 @@ export default function KleenestOSCommandCenter() {
   const diskPercent = number(storage.disk_observed_percent);
   const runningMarkets = number(markets.running);
   const pendingMarkets = number(markets.pending);
+  const warningPercent = number(storage.warning_fraction) > 0 ? number(storage.warning_fraction) * 100 : 65;
+  const throttlePercent = number(storage.throttle_fraction) > 0 ? number(storage.throttle_fraction) * 100 : 75;
+  const hardStopPercent = number(storage.hard_stop_fraction) > 0 ? number(storage.hard_stop_fraction) * 100 : 85;
 
   return <ScrollView contentInsetAdjustmentBehavior="automatic" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 84, backgroundColor:theme.canvas }}>
     <OSHero eyebrow="KLEENESTOS · PRIVATE PLATFORM OPERATING SYSTEM" title="COMMAND CENTER" body="Live platform state, what needs attention, and the control surface that can resolve it.">
@@ -183,8 +199,8 @@ export default function KleenestOSCommandCenter() {
 
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       <HealthCard label="Ingestion" value={paused ? 'PAUSED' : `${runningMarkets} LIVE`} tone={hardStop ? 'danger' : paused ? 'warning' : 'good'} detail={`${pendingMarkets} pending markets · ${String(scheduler.source ?? 'scheduler unknown')}`} />
-      <HealthCard label="Database" value={`${observedPercent.toFixed(1)}%`} tone={observedPercent >= 70 ? 'warning' : 'good'} detail={`${compactBytes(storage.observed_bytes)} observed · WAL ${compactBytes(storage.wal_bytes)}`} />
-      <HealthCard label="Disk observed" value={`${diskPercent.toFixed(1)}%`} tone={diskPercent >= 85 ? 'danger' : diskPercent >= 70 ? 'warning' : 'good'} detail="Database + WAL/overhead observation" />
+      <HealthCard label="Database" value={`${observedPercent.toFixed(1)}%`} tone={observedPercent >= hardStopPercent ? 'danger' : observedPercent >= warningPercent ? 'warning' : 'good'} detail={`${compactBytes(storage.observed_bytes)} of ${compactBytes(storage.database_allocation_bytes)} · WAL ${compactBytes(storage.wal_bytes)}`} />
+      <HealthCard label="Disk observed" value={`${diskPercent.toFixed(1)}%`} tone={diskPercent >= hardStopPercent ? 'danger' : diskPercent >= throttlePercent ? 'warning' : 'good'} detail={`${String(storage.plan_tier ?? 'plan').toUpperCase()} guard · throttle ${throttlePercent.toFixed(0)}% · stop ${hardStopPercent.toFixed(0)}%`} />
       <HealthCard label="Native push" value={activePushTokens} tone={nativePushFailures > 0 ? 'warning' : 'good'} detail={`${nativePushFailures} failed/expired · active device tokens`} />
       <HealthCard label="Integrity" value={integrityIssueCount} tone={integrityIssueCount > 0 ? 'danger' : 'good'} detail="Canonical orphan/consistency checks" />
       <HealthCard label="Moderation" value={reviewCount} tone={reviewCount ? 'warning' : 'good'} detail="Pending review reports" />
