@@ -66,7 +66,11 @@ function errorMessage(reason: unknown) {
       .filter(item => item != null && String(item).trim())
       .map(String);
     if (parts.length) return parts.join(' · ');
-    try { return JSON.stringify(reason); } catch { /* fall through */ }
+    const fallback = Object.entries(value)
+      .map(([key, item]) => item == null ? null : `${key}: ${String(item)}`)
+      .filter(Boolean)
+      .join(' · ');
+    if (fallback) return fallback;
   }
   return String(reason);
 }
