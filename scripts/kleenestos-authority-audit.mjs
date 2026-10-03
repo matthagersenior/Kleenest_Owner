@@ -51,7 +51,7 @@ for(const token of ['searchOwnerUsers','setOwnerUserAccess'])must(access.include
 for(const token of ['searchOwnerBusinesses','setOwnerBusinessAccess'])must(businessUi.includes(token),`Business UI missing wired ${token}`);
 for(const token of ['getOwnerEconomySnapshot','XP issuance','Evidence tiers','Level distribution','Objective mix','Progression Studio','Create objective','Archive objective','Delete objective','Progression supply'])must(progression.includes(token),`Economy UI missing ${token}`);
 for(const token of ['getOwnerModerationQueues','resolveOwnerReviewReport'])must(moderationUi.includes(token),`Moderation UI missing ${token}`);
-for(const token of ['getOwnerOperationsSnapshot','Interactive Discovery is the canonical acquisition path','value="DISCOVERY"'])must(operationsUi.includes(token),`Platform Health UI missing ${token}`);
+for(const token of ['getOwnerOperationsSnapshot','Interactive Discovery is the canonical acquisition path','label="Integrity"','label="Activity"','label="Resources"'])must(operationsUi.includes(token),`Platform Health UI missing ${token}`);
 for(const token of ['admin_national_ingestion_status','admin_set_national_ingestion_resume_authorization','setIngestionResumeAuthorization','National ingestion control','storageGuardSummary'])must(!(operations+operationsUi+home).includes(token),`Legacy ingestion authority must stay retired: ${token}`);
 for(const route of ['businesses','moderation'])must(layout.includes(`name="${route}"`),`Owner route not registered: ${route}`);
 for(const token of ['OSHero','HealthCard','StatusPill','SectionHeader','DiagnosticDisclosure'])must(os.includes(token),`KleenestOS component library missing ${token}`);
