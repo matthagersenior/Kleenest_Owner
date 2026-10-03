@@ -34,7 +34,7 @@ const primaryRoutes = [
   ['/creator-missions', 'Creator Missions', 'Create creator assignments, tracking links and QR codes, then control mission activation.'],
   ['/sponsored-ads', 'Sponsored Advertising', 'Approve business campaigns, create Kleenest campaigns, control placements, serving and performance.'],
   ['/moderation', 'Trust & Moderation', 'Resolve reports and pending trust queues.'],
-  ['/operations', 'Operations', 'Control ingestion and inspect integrity, delivery and backend health.'],
+  ['/operations', 'Platform Health', 'Inspect data integrity, delivery, backend resources and recent platform activity.'],
   ['/email-notifications', 'Email Alert Settings', 'Control operational alert rules, escalation, digest cadence, dedupe and delivery history.'],
 ] as const;
 
@@ -57,13 +57,6 @@ function countIntegrityIssues(value: unknown) {
   if (!Array.isArray(value)) return 0;
   return value.reduce((total, row) => total + number(object(row).issue_count), 0);
 }
-function compactBytes(value: unknown) {
-  const bytes = number(value);
-  if (bytes <= 0) return '0 MB';
-  const mb = bytes / 1024 / 1024;
-  if (mb < 1024) return `${mb.toFixed(mb >= 100 ? 0 : 1)} MB`;
-  return `${(mb / 1024).toFixed(2)} GB`;
-}
 function errorMessage(reason: unknown) {
   if (reason instanceof Error) return reason.message;
   if (reason && typeof reason === 'object') {
@@ -73,7 +66,11 @@ function errorMessage(reason: unknown) {
       .filter(item => item != null && String(item).trim())
       .map(String);
     if (parts.length) return parts.join(' · ');
-    try { return JSON.stringify(reason); } catch { /* fall through */ }
+    const fallback = Object.entries(value)
+      .map(([key, item]) => item == null ? null : `${key}: ${String(item)}`)
+      .filter(Boolean)
+      .join(' · ');
+    if (fallback) return fallback;
   }
   return String(reason);
 }
@@ -147,14 +144,7 @@ export default function KleenestOSCommandCenter() {
     try { await load(); } finally { setRefreshing(false); }
   }
 
-  const ingestion = object(state.operations?.ingestion);
-  const storage = object(ingestion.storage_guard);
-  const markets = object(ingestion.markets);
-  const scheduler = object(ingestion.scheduler);
   const nativePush = object(state.operations?.nativePush);
-  const paused = Boolean(storage.paused);
-  const hardStop = Boolean(storage.hard_stop);
-  const schedulerActive = scheduler.active === true;
   const integrityIssueCount = countIntegrityIssues(state.operations?.integrity);
   const nativePushFailures = number(nativePush.failed) + number(nativePush.expired);
   const activePushTokens = number(nativePush.active_tokens);
@@ -164,25 +154,15 @@ export default function KleenestOSCommandCenter() {
 
   const attention = useMemo<AttentionItem[]>(() => {
     const items: AttentionItem[] = [];
-    if (hardStop || paused) items.push({ key: 'ingestion-paused', href: '/operations', title: hardStop ? 'Ingestion hard stop' : 'Ingestion paused', body: String(storage.pause_reason ?? 'The national ingestion guard requires owner review.'), tone: 'danger' });
-    if (!schedulerActive) items.push({ key: 'scheduler', href: '/operations', title: 'Ingestion scheduler is inactive', body: 'Live runs may still be finishing, but the canonical pg_cron scheduler is not active.', tone: 'warning' });
     if (integrityIssueCount > 0) items.push({ key: 'integrity', href: '/operations', title: `${integrityIssueCount} data integrity issue${integrityIssueCount === 1 ? '' : 's'}`, body: 'Open Operations to inspect orphaned or contradictory platform records.', tone: 'danger' });
     if (nativePushFailures > 0) items.push({ key: 'native-push', href: '/operations', title: `${nativePushFailures} native push delivery failure${nativePushFailures === 1 ? '' : 's'}`, body: 'Inspect delivery receipts and exhausted retry attempts.', tone: 'warning' });
     if (reviewCount > 0) items.push({ key: 'moderation', href: '/moderation', title: `${reviewCount} moderation item${reviewCount === 1 ? '' : 's'} waiting`, body: 'Review trust reports that need an owner/admin decision.', tone: 'warning' });
     if (pendingBusinessCount > 0) items.push({ key: 'businesses', href: '/businesses', title: `${pendingBusinessCount} business item${pendingBusinessCount === 1 ? '' : 's'} waiting`, body: 'Resolve pending business/network administration.', tone: 'warning' });
     if (anomalyCount > 0) items.push({ key: 'economy', href: '/progression', title: `${anomalyCount} economy anomal${anomalyCount === 1 ? 'y' : 'ies'}`, body: 'Review high-velocity XP or progression activity.', tone: 'warning' });
     return items;
-  }, [anomalyCount, hardStop, integrityIssueCount, nativePushFailures, paused, pendingBusinessCount, reviewCount, schedulerActive, storage.pause_reason]);
+  }, [anomalyCount, integrityIssueCount, nativePushFailures, pendingBusinessCount, reviewCount]);
 
   if (loading) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator size="large" /></View>;
-
-  const observedPercent = number(storage.observed_percent);
-  const diskPercent = number(storage.disk_observed_percent);
-  const runningMarkets = number(markets.running);
-  const pendingMarkets = number(markets.pending);
-  const warningPercent = number(storage.warning_fraction) > 0 ? number(storage.warning_fraction) * 100 : 65;
-  const throttlePercent = number(storage.throttle_fraction) > 0 ? number(storage.throttle_fraction) * 100 : 75;
-  const hardStopPercent = number(storage.hard_stop_fraction) > 0 ? number(storage.hard_stop_fraction) * 100 : 85;
 
   return <ScrollView contentInsetAdjustmentBehavior="automatic" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />} contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 84, backgroundColor:theme.canvas }}>
     <OSHero eyebrow="KLEENESTOS · PRIVATE PLATFORM OPERATING SYSTEM" title="COMMAND CENTER" body="Live platform state, what needs attention, and the control surface that can resolve it.">
@@ -198,9 +178,7 @@ export default function KleenestOSCommandCenter() {
     </View>
 
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-      <HealthCard label="Ingestion" value={paused ? 'PAUSED' : `${runningMarkets} LIVE`} tone={hardStop ? 'danger' : paused ? 'warning' : 'good'} detail={`${pendingMarkets} pending markets · ${String(scheduler.source ?? 'scheduler unknown')}`} />
-      <HealthCard label="Database" value={`${observedPercent.toFixed(1)}%`} tone={observedPercent >= hardStopPercent ? 'danger' : observedPercent >= warningPercent ? 'warning' : 'good'} detail={`${compactBytes(storage.observed_bytes)} of ${compactBytes(storage.database_allocation_bytes)} · WAL ${compactBytes(storage.wal_bytes)}`} />
-      <HealthCard label="Disk observed" value={`${diskPercent.toFixed(1)}%`} tone={diskPercent >= hardStopPercent ? 'danger' : diskPercent >= throttlePercent ? 'warning' : 'good'} detail={`${String(storage.plan_tier ?? 'plan').toUpperCase()} guard · throttle ${throttlePercent.toFixed(0)}% · stop ${hardStopPercent.toFixed(0)}%`} />
+      <HealthCard label="Discovery" value={number(state.economy?.discoveries).toLocaleString()} tone="neutral" detail={`${number(state.economy?.onSiteDiscoveries).toLocaleString()} on-site · live Discovery grows canonical locations`} />
       <HealthCard label="Native push" value={activePushTokens} tone={nativePushFailures > 0 ? 'warning' : 'good'} detail={`${nativePushFailures} failed/expired · active device tokens`} />
       <HealthCard label="Integrity" value={integrityIssueCount} tone={integrityIssueCount > 0 ? 'danger' : 'good'} detail="Canonical orphan/consistency checks" />
       <HealthCard label="Moderation" value={reviewCount} tone={reviewCount ? 'warning' : 'good'} detail="Pending review reports" />
@@ -219,7 +197,7 @@ export default function KleenestOSCommandCenter() {
     </View>
 
     <View style={{ gap: 9 }}>
-      <SectionHeader title="Operate the platform" body="Daily control surfaces stay first: people, businesses, economy, trust, ingestion and delivery." />
+      <SectionHeader title="Operate the platform" body="Daily control surfaces stay first: people, businesses, economy, trust, Discovery health and delivery." />
       <DomainList routes={primaryRoutes} />
     </View>
 
