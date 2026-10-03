@@ -25,11 +25,13 @@ for(const token of [
 
 const index=read('app/index.tsx');
 const operations=read('app/operations.tsx');
+  if(operations.includes('label="Acquisition"')) failures.push('Platform Health should not reintroduce an acquisition status card');
+
 for(const [source,token,label] of [
   [index,'label="Discovery"','command center Discovery card'],
   [index,'live Discovery grows canonical locations','command center Discovery authority copy'],
   [operations,'Interactive Discovery is the canonical acquisition path','Platform Health acquisition authority'],
-  [operations,'value="DISCOVERY"','Platform Health Discovery status'],
+  [operations,'label="Integrity"','Platform Health integrity card'],
 ]){
   if(!source.includes(token)) failures.push(label+' missing '+token);
 }
