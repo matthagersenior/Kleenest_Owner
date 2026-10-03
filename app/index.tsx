@@ -178,7 +178,7 @@ export default function KleenestOSCommandCenter() {
     </View>
 
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-      <HealthCard label="Discovery" value={number(state.economy?.discoveries).toLocaleString()} tone="good" detail={`${number(state.economy?.onSiteDiscoveries).toLocaleString()} on-site · live Discovery grows canonical locations`} />
+      <HealthCard label="Discovery" value={number(state.economy?.discoveries).toLocaleString()} tone="neutral" detail={`${number(state.economy?.onSiteDiscoveries).toLocaleString()} on-site · live Discovery grows canonical locations`} />
       <HealthCard label="Native push" value={activePushTokens} tone={nativePushFailures > 0 ? 'warning' : 'good'} detail={`${nativePushFailures} failed/expired · active device tokens`} />
       <HealthCard label="Integrity" value={integrityIssueCount} tone={integrityIssueCount > 0 ? 'danger' : 'good'} detail="Canonical orphan/consistency checks" />
       <HealthCard label="Moderation" value={reviewCount} tone={reviewCount ? 'warning' : 'good'} detail="Pending review reports" />
