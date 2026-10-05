@@ -11,7 +11,7 @@ import {
 
 type ViewKey='action'|'inbox'|'waiting'|'sent'|'drafts'|'spam'|'trash'|'all';
 type DateValue=string|number|Date|null|undefined;
-const views:Record<ViewKey,{label:string;description:string;mailbox:'inbox'|'sent'|'all';direction:'any'|'incoming'|'outgoing'}>={
+const views:Record<ViewKey,{label:string;description:string;mailbox:'inbox'|'sent'|'drafts'|'spam'|'trash'|'all';direction:'any'|'incoming'|'outgoing'}>={
   action:{label:'Needs reply',description:'Inbound conversations waiting on Kleenest.',mailbox:'inbox',direction:'incoming'},
   inbox:{label:'Inbox',description:'Every current inbox conversation.',mailbox:'inbox',direction:'any'},
   waiting:{label:'Waiting',description:'Inbox conversations where Kleenest sent the latest reply.',mailbox:'inbox',direction:'outgoing'},
