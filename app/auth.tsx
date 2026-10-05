@@ -1,13 +1,16 @@
 import * as Linking from 'expo-linking';
 import { useEffect,useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable,ScrollView,Text,TextInput,View } from 'react-native';
+import { Platform,Pressable,ScrollView,Text,TextInput,View } from 'react-native';
 import { getSupabaseClient } from '@/lib/supabase';
 import { signInOwner } from '@/services/controlPlane';
 import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 import { useOwnerTheme } from '@/services/theme';
 
-const ownerRedirect=Linking.createURL('auth',{scheme:'kleenest-owner',isTripleSlashed:false});
+const ownerWebOrigin=(process.env.EXPO_PUBLIC_OWNER_WEB_ORIGIN||'https://os.kleenest.us').replace(/\/+$/,'');
+const ownerRedirect=Platform.OS==='web'
+  ? `${ownerWebOrigin}/auth`
+  : Linking.createURL('auth',{scheme:'kleenest-owner',isTripleSlashed:false});
 
 type AuthMode='signin'|'signup';
 function messageOf(value:unknown){
