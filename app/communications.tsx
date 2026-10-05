@@ -88,7 +88,7 @@ export default function Communications(){
   function editDraft(){
     if(!selected||selected.folder!=='drafts')return;
     const message=selected.messages[selected.messages.length-1];
-    setDraftId(selected.id);setTo(message?.to||'');setCc(message?.cc||'');setBcc('');setSubject(selected.subject||'');setBody(message?.body||'');
+    setDraftId(selected.id);setTo(message?.to||'');setCc(message?.cc||'');setBcc(message?.bcc||'');setSubject(selected.subject||'');setBody(message?.body||'');
     setSelected(null);setCompose(true);setNotice('Editing saved draft.');
   }
   async function sendReply(all=false){
