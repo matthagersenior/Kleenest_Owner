@@ -25,6 +25,7 @@ export type OwnerMailThreadSummary={
   date:string|null;
   unread:boolean;
   inInbox:boolean;
+  folder?:'inbox'|'archive'|'sent'|'drafts'|'spam'|'trash'|string;
   latestSent:boolean;
   starred:boolean;
   messageCount:number;
@@ -64,8 +65,12 @@ export type OwnerMailThread={
   participants:string[];
   unread:boolean;
   inInbox:boolean;
+  folder?:'inbox'|'archive'|'sent'|'drafts'|'spam'|'trash'|string;
+  starred?:boolean;
   labelIds:string[];
   labelNames:string[];
+  mailboxAddress?:string|null;
+  mailboxDisplayName?:string|null;
   messages:OwnerMailMessage[];
 };
 
@@ -104,7 +109,7 @@ export function listOwnerMailThreads(input:{
   query?:string;
   unreadOnly?:boolean;
   maxResults?:number;
-  mailbox?:'inbox'|'sent'|'all';
+  mailbox?:'inbox'|'sent'|'drafts'|'spam'|'trash'|'all';
   direction?:'any'|'incoming'|'outgoing';
 }={}){
   return invoke<{threads:OwnerMailThreadSummary[];nextPageToken:string|null}>({
@@ -147,6 +152,18 @@ export function setOwnerMailThreadRead(threadId:string,read:boolean){
   return invoke<{ok:true}>({action:'set_read',threadId,read});
 }
 
+export function saveOwnerMailDraft(input:{draftId?:string|null;to?:string;cc?:string;bcc?:string;subject?:string;body?:string}){
+  return invoke<{ok:true;threadId:string;messageId:string}>({
+    action:'save_draft',
+    draftId:input.draftId||'',
+    to:input.to?.trim()||'',
+    cc:input.cc?.trim()||'',
+    bcc:input.bcc?.trim()||'',
+    subject:input.subject?.trim()||'',
+    body:input.body?.trim()||'',
+  });
+}
+
 export function sendOwnerMail(input:{to:string;cc?:string;bcc?:string;subject:string;body:string}){
   return invoke<{messageId:string;threadId:string|null}>({
     action:'send',
@@ -172,4 +189,13 @@ export function setOwnerMailThreadInbox(threadId:string,inInbox:boolean){
 
 export function setOwnerMailThreadLabel(threadId:string,labelName:string,applied:boolean){
   return invoke<{ok:true;labelId:string}>({action:'set_label',threadId,labelName:labelName.trim(),applied});
+}
+
+
+export function spamOwnerMailThread(threadId:string){
+  return invoke<{ok:true}>({action:'spam',threadId});
+}
+
+export function blockOwnerMailThreadSender(threadId:string){
+  return invoke<{ok:true;sender:string}>({action:'block_sender',threadId});
 }
