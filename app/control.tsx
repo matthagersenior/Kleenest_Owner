@@ -9,6 +9,7 @@ const routes=[
  ['/creator-missions','Creator Missions','Creator assignments, tracking links and mission QR codes.'],
  ['/sponsored-ads','Sponsored Advertising','Campaign approval, placement CRUD, serving controls and performance.'],
  ['/moderation','Trust & Moderation','Reports, safety and trust queues.'],
+ ['/ingestion','Ingestion Control','Discovery-backed expansion, coverage priorities, source controls, repair actions and the global safety throttle.'],
  ['/email-notifications','Email Notifications','Operational alerts, digests, audits and delivery history.'],
  ['/audit','System Audit','Capability and owner activity audits.'],
 ] as const;
