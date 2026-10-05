@@ -7,6 +7,10 @@ if (configuredEasProjectId && configuredEasProjectId !== EXPECTED_EAS_PROJECT_ID
 }
 const EAS_PROJECT_ID = configuredEasProjectId || EXPECTED_EAS_PROJECT_ID;
 const otaChannel = process.env.EXPO_PUBLIC_OTA_CHANNEL || 'owner-production';
+const webBaseUrl = process.env.EXPO_PUBLIC_WEB_BASE_URL || '/';
+if (!webBaseUrl.startsWith('/')) {
+  throw new Error(`[KleenestOS] EXPO_PUBLIC_WEB_BASE_URL must start with "/". Received ${webBaseUrl}.`);
+}
 
 const config: ExpoConfig = {
   name: 'KleenestOS',
@@ -28,7 +32,7 @@ const config: ExpoConfig = {
   android: { package: 'com.kleenest.owner', icon: './assets/app-icon.png' },
   web: { output: 'single', bundler: 'metro', name: 'KleenestOS', shortName: 'KleenestOS' },
   plugins: ['expo-router', 'expo-secure-store'],
-  experiments: { typedRoutes: true, baseUrl: '/Kleenest_Owner' },
+  experiments: { typedRoutes: true, baseUrl: webBaseUrl },
   extra: {
     appRole: 'owner',
     otaChannel,
