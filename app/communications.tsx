@@ -1,332 +1,178 @@
-import { useEffect,useMemo,useRef,useState } from 'react';
-import { Link,useLocalSearchParams,useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
-import { Platform,Pressable,RefreshControl,ScrollView,Text,TextInput,View } from 'react-native';
-import { getSupabaseClient } from '@/lib/supabase';
-import { HealthCard,OSHero,SectionHeader,StatusPill,useOSCardStyle } from '@/components/KleenestOS';
+import { useEffect,useMemo,useState } from 'react';
+import { Pressable,RefreshControl,ScrollView,Text,TextInput,View } from 'react-native';
+import { OSHero,SectionHeader,StatusPill,useOSCardStyle } from '@/components/KleenestOS';
 import { useOwnerTheme } from '@/services/theme';
-import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 import {
-  archiveOwnerMailThread,
-  getOwnerMailStatus,
-  getOwnerMailThread,
-  listOwnerMailThreads,
-  replyOwnerMailThread,
-  setOwnerMailThreadRead,
-  type OwnerMailConnectionStatus,
-  type OwnerMailThread,
-  type OwnerMailThreadSummary,
+  archiveOwnerMailThread,forwardOwnerMailThread,getOwnerMailStatus,getOwnerMailThread,listOwnerMailThreads,
+  replyOwnerMailThread,sendOwnerMail,setOwnerMailThreadInbox,setOwnerMailThreadLabel,setOwnerMailThreadRead,
+  setOwnerMailThreadStarred,trashOwnerMailThread,
+  type OwnerMailConnectionStatus,type OwnerMailThread,type OwnerMailThreadSummary,
 } from '@/services/communications';
 
-WebBrowser.maybeCompleteAuthSession();
-
-const gmailScopes=[
-  'openid',
-  'email',
-  'profile',
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.modify',
-  'https://www.googleapis.com/auth/gmail.send',
-].join(' ');
-
-function authParam(url:string,name:string){
-  try{
-    const parsed=new URL(url);
-    return parsed.searchParams.get(name)||new URLSearchParams(parsed.hash.replace(/^#/,'')).get(name);
-  }catch{
-    const match=url.match(new RegExp(`[?#&]${name}=([^&#]+)`));
-    return match?.[1]?decodeURIComponent(match[1]):null;
-  }
-}
-
-function formatDate(value:string|null){
-  if(!value)return '';
-  const date=new Date(value);
-  return Number.isFinite(date.getTime())?date.toLocaleString():value;
-}
-
-function excerpt(value:string,max=220){
-  const clean=value.replace(/\s+/g,' ').trim();
-  return clean.length>max?`${clean.slice(0,max-1)}…`:clean;
-}
+type ViewKey='action'|'active'|'waiting'|'sent'|'all';
+type DateValue=string|number|Date|null|undefined;
+const views:Record<ViewKey,{label:string;description:string;mailbox:'inbox'|'sent'|'all';direction:'any'|'incoming'|'outgoing'}>={
+  action:{label:'Needs reply',description:'Latest message came into Kleenest.',mailbox:'inbox',direction:'incoming'},
+  active:{label:'Active',description:'Current Kleenest inbox conversations.',mailbox:'inbox',direction:'any'},
+  waiting:{label:'Waiting',description:'Kleenest sent the latest message.',mailbox:'all',direction:'outgoing'},
+  sent:{label:'Sent',description:'Outbound Kleenest conversations.',mailbox:'sent',direction:'any'},
+  all:{label:'All mail',description:'Every conversation except Trash.',mailbox:'all',direction:'any'},
+};
+const date=(v:DateValue)=>{
+  const d=new Date(v||'');
+  return Number.isFinite(d.getTime())?d.toLocaleString():'';
+};
 
 export default function Communications(){
-  const theme=useOwnerTheme();
-  const card=useOSCardStyle();
-  const router=useRouter();
-  const params=useLocalSearchParams<{code?:string;error?:string;error_description?:string}>();
-  const callbackHandled=useRef('');
-  const[providerToken,setProviderToken]=useState('');
+  const theme=useOwnerTheme(); const card=useOSCardStyle();
   const[status,setStatus]=useState<OwnerMailConnectionStatus|null>(null);
   const[threads,setThreads]=useState<OwnerMailThreadSummary[]>([]);
   const[selected,setSelected]=useState<OwnerMailThread|null>(null);
-  const[query,setQuery]=useState('');
-  const[unreadOnly,setUnreadOnly]=useState(false);
-  const[replyBody,setReplyBody]=useState('');
-  const[busy,setBusy]=useState(false);
-  const[notice,setNotice]=useState('');
-  const[searching,setSearching]=useState(false);
+  const[view,setView]=useState<ViewKey>('action'); const[query,setQuery]=useState(''); const[unread,setUnread]=useState(false);
+  const[busy,setBusy]=useState(false); const[notice,setNotice]=useState('');
+  const[compose,setCompose]=useState(false); const[to,setTo]=useState(''); const[cc,setCc]=useState(''); const[bcc,setBcc]=useState('');
+  const[subject,setSubject]=useState(''); const[body,setBody]=useState(''); const[reply,setReply]=useState('');
+  const[forward,setForward]=useState(false); const[forwardTo,setForwardTo]=useState(''); const[forwardBody,setForwardBody]=useState('');
+  const[label,setLabel]=useState('');
+  const unreadCount=useMemo(()=>threads.filter(t=>t.unread).length,[threads]);
+  const ready=Boolean(status?.connected);
 
-  const unreadCount=useMemo(()=>threads.filter(thread=>thread.unread).length,[threads]);
-
-  async function tokenFromSession(){
-    const client=getSupabaseClient();
-    const{data}=await client.auth.getSession();
-    return String(data.session?.provider_token||'');
-  }
-
-  async function load(nextToken?:string,options:{query?:string;unreadOnly?:boolean}={}){
-    const token=nextToken||providerToken||await tokenFromSession();
-    if(!token){setProviderToken('');setStatus(null);setThreads([]);return}
+  async function load(nextView=view){
     setBusy(true);
     try{
-      const auth=await getOwnerAuthorization();
-      if(!auth.authorized)throw new Error('Owner/admin authority is required for Communications.');
-      setProviderToken(token);
-      const[nextStatus,nextThreads]=await Promise.all([
-        getOwnerMailStatus(token),
-        listOwnerMailThreads(token,{query:options.query??query,unreadOnly:options.unreadOnly??unreadOnly,maxResults:30}),
+      const [s,r]=await Promise.all([
+        getOwnerMailStatus(),
+        listOwnerMailThreads({query,unreadOnly:unread,maxResults:75,mailbox:views[nextView].mailbox,direction:views[nextView].direction}),
       ]);
-      setStatus(nextStatus);
-      setThreads(nextThreads.threads);
-      setNotice('');
-    }catch(error:any){
-      const text=String(error?.message||'Gmail could not be loaded.');
-      if(/401|unauth|token|credential/i.test(text)){setProviderToken('');setStatus(null);setThreads([])}
-      setNotice(text);
-    }finally{setBusy(false);setSearching(false)}
-  }
-
-  async function finishGmailOAuth(urlOrCode:string,originalSession?:Awaited<ReturnType<ReturnType<typeof getSupabaseClient>['auth']['getSession']>>['data']['session']){
-    const client=getSupabaseClient();
-    const oauthError=urlOrCode.includes('://')
-      ? authParam(urlOrCode,'error_description')||authParam(urlOrCode,'error')
-      : '';
-    if(oauthError)throw new Error(oauthError);
-    const code=urlOrCode.includes('://')?authParam(urlOrCode,'code'):urlOrCode;
-    if(!code)throw new Error('Google returned to KleenestOS without an authorization code.');
-
-    const before=originalSession??(await client.auth.getSession()).data.session;
-    const{error:exchangeError}=await client.auth.exchangeCodeForSession(code);
-    if(exchangeError)throw exchangeError;
-
-    const{data:{session:connectedSession}}=await client.auth.getSession();
-    if(!connectedSession)throw new Error('Google connected, but no Owner session was returned.');
-    if(before&&connectedSession.user.id!==before.user.id){
-      await client.auth.setSession({access_token:before.access_token,refresh_token:before.refresh_token});
-      throw new Error('Choose the Google account tied to this Owner identity. The original Owner session was restored safely.');
-    }
-    const token=String(connectedSession.provider_token||'');
-    if(!token)throw new Error('Google connected, but Gmail authorization was not returned. Reconnect and approve Gmail access.');
-    const auth=await getOwnerAuthorization();
-    if(!auth.authorized)throw new Error('The connected Google account does not have Owner/admin authority.');
-    await load(token);
-    return token;
-  }
-
-  useEffect(()=>{
-    const code=typeof params.code==='string'?params.code:'';
-    const oauthError=(typeof params.error_description==='string'?params.error_description:'')||(typeof params.error==='string'?params.error:'');
-    const callbackKey=code||oauthError;
-    if(callbackKey&&callbackHandled.current!==callbackKey){
-      callbackHandled.current=callbackKey;
-      setBusy(true);setNotice('');
-      (async()=>{
-        try{
-          if(oauthError)throw new Error(oauthError);
-          await finishGmailOAuth(code);
-          setNotice('Gmail connected.');
-        }catch(error:any){
-          setNotice(String(error?.message||'Gmail connection failed.'));
-        }finally{
-          setBusy(false);
-          router.replace('/communications');
-        }
-      })();
-      return;
-    }
-    if(!callbackKey)void load();
-  },[params.code,params.error,params.error_description]);
-
-  async function connectGmail(){
-    if(busy)return;
-    const client=getSupabaseClient();
-    const{data:{session:ownerSession}}=await client.auth.getSession();
-    if(!ownerSession){setNotice('Sign in to the Owner app before connecting Gmail.');return}
-    const redirectTo=Platform.OS==='web'&&typeof window!=='undefined'
-      ? `${window.location.origin}${window.location.pathname}`
-      : Linking.createURL('communications',{scheme:'kleenest-owner',isTripleSlashed:false});
-    setBusy(true);setNotice('');
-    try{
-      const{data,error}=await client.auth.signInWithOAuth({
-        provider: 'google',
-        options:{
-          redirectTo,
-          skipBrowserRedirect:Platform.OS!=='web',
-          scopes:gmailScopes,
-          queryParams:{access_type:'offline',prompt:'consent'},
-        },
-      });
-      if(error)throw error;
-      if(!data.url)throw new Error('Google did not return an authorization URL.');
-      if(Platform.OS==='web'&&typeof window!=='undefined'){
-        window.location.assign(data.url);
-        return;
-      }
-      const result=await WebBrowser.openAuthSessionAsync(data.url,redirectTo);
-      if(result.type==='cancel'||result.type==='dismiss'){setNotice('Gmail connection was cancelled.');return}
-      if(result.type!=='success'||!result.url)throw new Error('Google did not return to KleenestOS.');
-      await finishGmailOAuth(result.url,ownerSession);
-      setNotice('Gmail connected.');
-    }catch(error:any){
-      setNotice(String(error?.message||'Gmail connection failed.'));
-    }finally{setBusy(false)}
-  }
-
-  async function search(){
-    setSearching(true);
-    await load(undefined,{query,unreadOnly});
-  }
-
-  async function openThread(row:OwnerMailThreadSummary){
-    if(!providerToken)return;
-    setBusy(true);
-    try{
-      const result=await getOwnerMailThread(providerToken,row.id);
-      setSelected(result.thread);
-      setReplyBody('');
-      if(result.thread.unread){
-        await setOwnerMailThreadRead(providerToken,row.id,true);
-        setThreads(current=>current.map(item=>item.id===row.id?{...item,unread:false}:item));
-        setSelected(current=>current?{...current,unread:false}:current);
-      }
-      setNotice('');
-    }catch(error:any){setNotice(String(error?.message||'Thread could not be opened.'))}
+      setStatus(s); setThreads(r.threads); setView(nextView); setNotice('');
+    }catch(e:any){setNotice(String(e?.message||'Email Center could not be loaded.'))}
     finally{setBusy(false)}
   }
+  useEffect(()=>{void load()},[]);
 
-  async function sendReply(){
-    if(!providerToken||!selected||!replyBody.trim())return;
+  async function open(t:OwnerMailThreadSummary){
     setBusy(true);
     try{
-      await replyOwnerMailThread(providerToken,{threadId:selected.id,body:replyBody});
-      setReplyBody('');
-      const result=await getOwnerMailThread(providerToken,selected.id);
-      setSelected(result.thread);
-      setNotice('Reply sent from Gmail.');
-      await load();
-    }catch(error:any){setNotice(String(error?.message||'Reply could not be sent.'))}
+      const r=await getOwnerMailThread(t.id); setSelected(r.thread); setReply(''); setForward(false);
+      if(r.thread.unread){await setOwnerMailThreadRead(t.id,true); setThreads(x=>x.map(v=>v.id===t.id?{...v,unread:false}:v))}
+    }catch(e:any){setNotice(String(e?.message||'Thread could not be opened.'))}
     finally{setBusy(false)}
   }
-
-  async function archive(threadId:string){
-    if(!providerToken)return;
+  async function refreshSelected(){if(selected)setSelected((await getOwnerMailThread(selected.id)).thread)}
+  async function sendNew(){
+    if(!to.trim()||!subject.trim()||!body.trim())return;
     setBusy(true);
-    try{
-      await archiveOwnerMailThread(providerToken,threadId);
-      setThreads(current=>current.filter(item=>item.id!==threadId));
-      if(selected?.id===threadId)setSelected(null);
-      setNotice('Conversation archived in Gmail.');
-    }catch(error:any){setNotice(String(error?.message||'Conversation could not be archived.'))}
-    finally{setBusy(false)}
+    try{await sendOwnerMail({to,cc,bcc,subject,body});setTo('');setCc('');setBcc('');setSubject('');setBody('');setCompose(false);setNotice('Email sent from Kleenest.');await load('sent')}
+    catch(e:any){setNotice(String(e?.message||'Email could not be sent.'))}finally{setBusy(false)}
+  }
+  async function sendReply(all=false){
+    if(!selected||!reply.trim())return; setBusy(true);
+    try{await replyOwnerMailThread({threadId:selected.id,body:reply,replyAll:all});setReply('');await refreshSelected();setNotice(all?'Reply all sent from Kleenest.':'Reply sent from Kleenest.');await load()}
+    catch(e:any){setNotice(String(e?.message||'Reply could not be sent.'))}finally{setBusy(false)}
+  }
+  async function sendForward(){
+    if(!selected||!forwardTo.trim())return; setBusy(true);
+    try{await forwardOwnerMailThread({threadId:selected.id,to:forwardTo,body:forwardBody});setForward(false);setForwardTo('');setForwardBody('');setNotice('Message forwarded from Kleenest.');await refreshSelected()}
+    catch(e:any){setNotice(String(e?.message||'Forward could not be sent.'))}finally{setBusy(false)}
+  }
+  async function mutate(fn:()=>Promise<any>,message:string,remove=false){
+    if(!selected)return; setBusy(true);
+    try{await fn();setNotice(message);if(remove){setThreads(x=>x.filter(t=>t.id!==selected.id));setSelected(null)}else{await refreshSelected();await load()}}
+    catch(e:any){setNotice(String(e?.message||'Email action failed.'))}finally{setBusy(false)}
+  }
+  async function addLabel(){
+    if(!selected||!label.trim())return;
+    await mutate(()=>setOwnerMailThreadLabel(selected.id,label.trim(),true),'Label added.');setLabel('');
   }
 
-  async function markUnread(threadId:string){
-    if(!providerToken)return;
-    setBusy(true);
-    try{
-      await setOwnerMailThreadRead(providerToken,threadId,false);
-      setThreads(current=>current.map(item=>item.id===threadId?{...item,unread:true}:item));
-      if(selected?.id===threadId)setSelected(current=>current?{...current,unread:true}:current);
-      setNotice('Conversation marked unread.');
-    }catch(error:any){setNotice(String(error?.message||'Read state could not be updated.'))}
-    finally{setBusy(false)}
-  }
-
-  if(!providerToken||!status){
-    return <ScrollView contentContainerStyle={{padding:16,gap:16,paddingBottom:70,backgroundColor:theme.canvas}}>
-      <OSHero eyebrow="KLEENESTOS · COMMUNICATIONS" title="Email Dashboard & Inbox" body="Read and respond to Kleenest outreach, partnership and prospect email without leaving the Owner app. Gmail access is granted explicitly and stays behind Owner authorization."/>
-      {notice?<View style={{...card,borderColor:theme.warning}}><Text style={{fontWeight:'800',color:theme.warning}}>{notice}</Text></View>:null}
-      <View style={{...card,gap:10}}>
-        <SectionHeader title="Connect your mailbox" body="KleenestOS requests Gmail read, modify and send permission so this screen can show conversations, reply in-thread, archive, and manage unread state."/>
-        <Pressable disabled={busy} onPress={connectGmail} style={{backgroundColor:theme.accent,borderRadius:14,padding:14,alignItems:'center',opacity:busy?0.6:1}}>
-          <Text style={{fontWeight:'900',color:theme.accentText}}>{busy?'Connecting…':'Connect Gmail'}</Text>
-        </Pressable>
-        <Text style={{fontSize:12,lineHeight:18,color:theme.muted}}>No Gmail password is stored in KleenestOS. If Google access expires, this screen asks you to reconnect.</Text>
-      </View>
-    </ScrollView>;
-  }
-
-  return <ScrollView refreshControl={<RefreshControl refreshing={busy&&!searching} onRefresh={()=>void load()}/>} contentContainerStyle={{padding:16,gap:14,paddingBottom:80,backgroundColor:theme.canvas}}>
-    <OSHero eyebrow="KLEENESTOS · COMMUNICATIONS" title="Email Dashboard & Inbox" body="Mailbox health, unread work, prospect context, and replies in one Owner workflow.">
-      <StatusPill label={status.emailAddress||'GMAIL CONNECTED'} tone="good"/>
+  return <ScrollView refreshControl={<RefreshControl refreshing={busy} onRefresh={()=>void load()}/>} contentContainerStyle={{padding:16,gap:14,paddingBottom:80,backgroundColor:theme.canvas}}>
+    <OSHero eyebrow="KLEENESTOS · COMMUNICATIONS" title="Kleenest Email Center" body="A first-party inbox for support, outreach, partnerships and operations. KleenestOS owns the threads; Resend handles delivery.">
+      <StatusPill label={status?.emailAddress||'support@kleenest.us'} tone={ready?'good':'warning'}/>
+      <StatusPill label={ready?'MAIL LIVE':'SETUP IN PROGRESS'} tone={ready?'good':'warning'}/>
       {unreadCount?<StatusPill label={`${unreadCount} UNREAD`} tone="warning"/>:null}
     </OSHero>
 
-    <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
-      <HealthCard label="Mailbox" value={status.emailAddress||'CONNECTED'} tone="good" detail={`${status.threadsTotal.toLocaleString()} Gmail threads total`}/>
-      <HealthCard label="Unread in view" value={unreadCount} tone={unreadCount?'warning':'good'} detail="Current 30-thread inbox view"/>
-      <HealthCard label="Inbox shown" value={threads.length} tone="neutral" detail="Search/filter-aware conversation count"/>
-    </View>
-
     {notice?<View style={{...card,borderColor:theme.warning}}><Text style={{fontWeight:'800',color:theme.warning}}>{notice}</Text></View>:null}
 
+    <View style={{...card,gap:8}}>
+      <SectionHeader title="Email service" body="No Gmail connection is required. KleenestOS is the system of record."/>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        <StatusPill label={status?.providerConfigured?'RESEND CONNECTED':'PROVIDER PENDING'} tone={status?.providerConfigured?'good':'warning'}/>
+        <StatusPill label={status?.domainStatus==='verified'?'DOMAIN VERIFIED':'DOMAIN DNS PENDING'} tone={status?.domainStatus==='verified'?'good':'warning'}/>
+        <StatusPill label={status?.webhookEnabled?'INBOUND LIVE':'INBOUND PENDING'} tone={status?.webhookEnabled?'good':'warning'}/>
+      </View>
+      <Text style={{fontSize:12,color:theme.muted}}>Primary: support@kleenest.us · Fallback: {status?.fallbackAddress||'Kleenestapp@gmail.com'}</Text>
+    </View>
+
     <View style={{...card,gap:10}}>
-      <Text style={{fontWeight:'900',color:theme.ink}}>Search mail</Text>
-      <View style={{flexDirection:'row',gap:8}}>
-        <TextInput value={query} onChangeText={setQuery} onSubmitEditing={()=>void search()} placeholder="Sender, company, subject, keywords…" placeholderTextColor={theme.muted} style={{flex:1,borderWidth:1,borderColor:theme.line,borderRadius:12,paddingHorizontal:12,paddingVertical:10,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
-        <Pressable onPress={()=>void search()} style={{justifyContent:'center',paddingHorizontal:14,borderRadius:12,backgroundColor:theme.accent}}><Text style={{fontWeight:'900',color:theme.accentText}}>{searching?'…':'Search'}</Text></Pressable>
+      <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}>
+        <View style={{flex:1}}><Text style={{fontWeight:'900',color:theme.ink}}>Smart views</Text><Text style={{fontSize:12,color:theme.muted}}>{views[view].description}</Text></View>
+        <Pressable disabled={!ready||busy} onPress={()=>setCompose(v=>!v)} style={{padding:11,borderRadius:12,backgroundColor:theme.accent,opacity:!ready||busy?0.5:1}}><Text style={{fontWeight:'900',color:theme.accentText}}>{compose?'Close':'Compose'}</Text></Pressable>
       </View>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-        <Pressable onPress={()=>{const next=!unreadOnly;setUnreadOnly(next);void load(undefined,{unreadOnly:next})}} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:unreadOnly?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:unreadOnly?theme.accentText:theme.accent}}>Unread</Text></Pressable>
-        <Pressable onPress={()=>void load()} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Refresh</Text></Pressable>
-        <Pressable onPress={connectGmail} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:theme.surfaceRaised,borderWidth:1,borderColor:theme.line}}><Text style={{fontWeight:'900',color:theme.ink}}>Reconnect Gmail</Text></Pressable>
-        <Link href="/email-notifications" asChild><Pressable style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:theme.surfaceRaised,borderWidth:1,borderColor:theme.line}}><Text style={{fontWeight:'900',color:theme.ink}}>Alert settings</Text></Pressable></Link>
+        {(Object.keys(views) as ViewKey[]).map(k=><Pressable key={k} onPress={()=>void load(k)} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:k===view?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:k===view?theme.accentText:theme.accent}}>{views[k].label}</Text></Pressable>)}
       </View>
     </View>
 
-    {selected?<View style={{...card,gap:12,borderColor:theme.accent}}>
-      <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
-        <View style={{flex:1}}>
-          <Text style={{fontSize:20,fontWeight:'900',color:theme.ink}}>{selected.subject}</Text>
-          <Text style={{fontSize:12,color:theme.muted,marginTop:3}}>{selected.messages.length} message{selected.messages.length===1?'':'s'}</Text>
-        </View>
-        <Pressable onPress={()=>setSelected(null)}><Text style={{fontWeight:'900',color:theme.accent}}>Close</Text></Pressable>
-      </View>
-      {selected.messages.map(message=><View key={message.id} style={{padding:12,borderRadius:13,backgroundColor:theme.surfaceRaised,borderWidth:1,borderColor:theme.line,gap:6}}>
-        <Text style={{fontWeight:'900',color:theme.ink}}>{message.sent?'You':message.from}</Text>
-        <Text style={{fontSize:11,color:theme.muted}}>{formatDate(message.date)}</Text>
-        <Text selectable style={{lineHeight:20,color:theme.ink}}>{message.body||message.snippet}</Text>
-      </View>)}
-      <View style={{gap:7}}>
-        <Text style={{fontWeight:'900',color:theme.ink}}>Reply</Text>
-        <TextInput value={replyBody} onChangeText={setReplyBody} multiline placeholder="Write your reply…" placeholderTextColor={theme.muted} style={{minHeight:120,textAlignVertical:'top',borderWidth:1,borderColor:theme.line,borderRadius:13,padding:12,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
-        <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-          <Pressable disabled={!replyBody.trim()||busy} onPress={()=>void sendReply()} style={{paddingHorizontal:14,paddingVertical:10,borderRadius:12,backgroundColor:theme.accent,opacity:(!replyBody.trim()||busy)?0.5:1}}><Text style={{fontWeight:'900',color:theme.accentText}}>Reply</Text></Pressable>
-          <Pressable onPress={()=>void markUnread(selected.id)} style={{paddingHorizontal:12,paddingVertical:10,borderRadius:12,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Mark unread</Text></Pressable>
-          <Pressable onPress={()=>void archive(selected.id)} style={{paddingHorizontal:12,paddingVertical:10,borderRadius:12,backgroundColor:theme.surfaceRaised,borderWidth:1,borderColor:theme.line}}><Text style={{fontWeight:'900',color:theme.ink}}>Archive</Text></Pressable>
-        </View>
-      </View>
+    {compose?<View style={{...card,gap:8,borderColor:theme.accent}}>
+      <SectionHeader title="New email" body="Send from Kleenest <support@kleenest.us>."/>
+      {[
+        ['To',to,setTo],['Cc (optional)',cc,setCc],['Bcc (optional)',bcc,setBcc],['Subject',subject,setSubject],
+      ].map(([p,v,s]:any)=><TextInput key={p} value={v} onChangeText={s} placeholder={p} placeholderTextColor={theme.muted} style={{borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>)}
+      <TextInput value={body} onChangeText={setBody} placeholder="Write your message…" placeholderTextColor={theme.muted} multiline style={{minHeight:130,textAlignVertical:'top',borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
+      <Pressable disabled={busy||!to.trim()||!subject.trim()||!body.trim()} onPress={()=>void sendNew()} style={{padding:12,borderRadius:12,alignItems:'center',backgroundColor:theme.accent,opacity:busy||!to.trim()||!subject.trim()||!body.trim()?0.5:1}}><Text style={{fontWeight:'900',color:theme.accentText}}>Send from Kleenest</Text></Pressable>
     </View>:null}
 
-    <View style={{gap:9}}>
-      <SectionHeader title="Inbox" body={threads.length?`${threads.length} recent conversation${threads.length===1?'':'s'} · tap one to read and respond.`:'No matching inbox conversations.'}/>
-      {threads.map(thread=><Pressable key={thread.id} onPress={()=>void openThread(thread)} style={{...card,gap:6,borderColor:thread.unread?theme.accent:theme.line}}>
-        <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-          <Text numberOfLines={1} style={{flex:1,fontWeight:thread.unread?'900':'800',color:theme.ink}}>{thread.from}</Text>
-          {thread.unread?<StatusPill label="UNREAD" tone="warning"/>:null}
-        </View>
-        <Text numberOfLines={1} style={{fontSize:16,fontWeight:'900',color:theme.ink}}>{thread.subject}</Text>
-        <Text numberOfLines={2} style={{lineHeight:18,color:theme.muted}}>{excerpt(thread.snippet)}</Text>
-        <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
-          <Text style={{fontSize:11,color:theme.muted}}>{formatDate(thread.date)} · {thread.messageCount} message{thread.messageCount===1?'':'s'}</Text>
-          <View style={{flexDirection:'row',gap:8}}>
-            <Pressable onPress={event=>{event.stopPropagation();void markUnread(thread.id)}}><Text style={{fontWeight:'900',color:theme.accent}}>Mark unread</Text></Pressable>
-            <Pressable onPress={event=>{event.stopPropagation();void archive(thread.id)}}><Text style={{fontWeight:'900',color:theme.muted}}>Archive</Text></Pressable>
-          </View>
-        </View>
-      </Pressable>)}
+    <View style={{...card,gap:8}}>
+      <SectionHeader title="Find conversations" body="Search the current Kleenest view."/>
+      <TextInput value={query} onChangeText={setQuery} placeholder="Search this Kleenest view" placeholderTextColor={theme.muted} onSubmitEditing={()=>void load()} style={{borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
+      <View style={{flexDirection:'row',gap:8}}>
+        <Pressable onPress={()=>{setUnread(v=>!v);setTimeout(()=>void load(),0)}} style={{padding:9,borderRadius:999,backgroundColor:unread?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:unread?theme.accentText:theme.accent}}>Unread</Text></Pressable>
+        <Pressable onPress={()=>void load()} style={{padding:9,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Refresh</Text></Pressable>
+      </View>
     </View>
+
+    {threads.length===0?<View style={{...card}}><Text style={{fontWeight:'900',color:theme.ink}}>{busy?'Loading mail…':'No conversations in this view'}</Text><Text style={{fontSize:12,color:theme.muted,marginTop:5}}>New mail to support@kleenest.us will appear here automatically.</Text></View>:threads.map(t=><Pressable key={t.id} onPress={()=>void open(t)} style={{...card,gap:5,borderColor:t.unread?theme.warning:theme.line}}>
+      <View style={{flexDirection:'row',gap:8}}><Text numberOfLines={1} style={{flex:1,fontWeight:t.unread?'900':'800',color:theme.ink}}>{t.subject}</Text>{t.starred?<Text style={{color:theme.warning}}>★</Text>:null}</View>
+      <Text numberOfLines={1} style={{fontSize:12,fontWeight:'800',color:theme.accent}}>{t.from||t.fromEmail||'Conversation'}</Text>
+      <Text numberOfLines={2} style={{fontSize:12,lineHeight:18,color:theme.muted}}>{t.snippet}</Text>
+      <Text style={{fontSize:11,color:theme.muted}}>{t.latestSent?'WAITING':'NEEDS REPLY'} · {date(t.date)} · {t.messageCount} message{t.messageCount===1?'':'s'}</Text>
+    </Pressable>)}
+
+    {selected?<View style={{...card,gap:12,borderColor:theme.accent}}>
+      <Text style={{fontSize:18,fontWeight:'900',color:theme.ink}}>{selected.subject}</Text>
+      <Text style={{fontSize:12,color:theme.muted}}>{selected.participants.join(' · ')}</Text>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>
+        <Pressable onPress={()=>void mutate(()=>setOwnerMailThreadStarred(selected.id,true),'Conversation starred.')} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Star</Text></Pressable>
+        <Pressable onPress={()=>void mutate(()=>setOwnerMailThreadRead(selected.id,false),'Marked unread.')} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Mark unread</Text></Pressable>
+        <Pressable onPress={()=>void mutate(()=>setOwnerMailThreadInbox(selected.id,!selected.inInbox),selected.inInbox?'Archived.':'Moved to inbox.')} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>{selected.inInbox?'Archive':'Move to inbox'}</Text></Pressable>
+        <Pressable onPress={()=>void mutate(()=>archiveOwnerMailThread(selected.id),'Conversation archived.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Archive</Text></Pressable>
+        <Pressable onPress={()=>void mutate(()=>trashOwnerMailThread(selected.id),'Conversation moved to Trash.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Trash</Text></Pressable>
+      </View>
+
+      {selected.messages.map(m=><View key={m.id} style={{borderTopWidth:1,borderColor:theme.line,paddingTop:10,gap:6}}>
+        <Text style={{fontWeight:'900',color:theme.ink}}>{m.sent?'Kleenest':m.from}</Text>
+        <Text style={{fontSize:11,color:theme.muted}}>{date(m.date)} · {m.sent?'Outbound':'Inbound'}</Text>
+        <Text selectable style={{fontSize:14,lineHeight:21,color:theme.ink}}>{m.body||m.snippet||'(no body)'}</Text>
+        {m.attachments.length?<View><Text style={{fontWeight:'900',fontSize:12,color:theme.ink}}>Attachments</Text>{m.attachments.map((a,i)=><Text key={i} style={{fontSize:12,color:theme.muted}}>{a.filename} · {a.mimeType}</Text>)}</View>:null}
+      </View>)}
+
+      <Text style={{fontWeight:'900',color:theme.ink}}>Reply</Text>
+      <TextInput value={reply} onChangeText={setReply} placeholder="Write a reply…" placeholderTextColor={theme.muted} multiline style={{minHeight:100,textAlignVertical:'top',borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
+      <View style={{flexDirection:'row',gap:8,flexWrap:'wrap'}}>
+        <Pressable disabled={!ready||busy||!reply.trim()} onPress={()=>void sendReply(false)} style={{padding:10,borderRadius:12,backgroundColor:theme.accent,opacity:!ready||busy||!reply.trim()?0.5:1}}><Text style={{fontWeight:'900',color:theme.accentText}}>Reply</Text></Pressable>
+        <Pressable disabled={!ready||busy||!reply.trim()} onPress={()=>void sendReply(true)} style={{padding:10,borderRadius:12,backgroundColor:theme.accentSoft,opacity:!ready||busy||!reply.trim()?0.5:1}}><Text style={{fontWeight:'900',color:theme.accent}}>Reply all</Text></Pressable>
+        <Pressable disabled={!ready||busy} onPress={()=>setForward(v=>!v)} style={{padding:10,borderRadius:12,backgroundColor:theme.accentSoft,opacity:!ready||busy?0.5:1}}><Text style={{fontWeight:'900',color:theme.accent}}>Forward</Text></Pressable>
+      </View>
+      {forward?<View style={{gap:8}}>
+        <TextInput value={forwardTo} onChangeText={setForwardTo} placeholder="Forward to" placeholderTextColor={theme.muted} style={{borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
+        <TextInput value={forwardBody} onChangeText={setForwardBody} placeholder="Optional note" placeholderTextColor={theme.muted} multiline style={{minHeight:80,textAlignVertical:'top',borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
+        <Pressable onPress={()=>void sendForward()} style={{padding:10,borderRadius:12,backgroundColor:theme.accent}}><Text style={{fontWeight:'900',color:theme.accentText}}>Forward message</Text></Pressable>
+      </View>:null}
+
+      <Text style={{fontWeight:'900',color:theme.ink}}>Kleenest labels</Text>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>{selected.labelNames.map(v=><Pressable key={v} onPress={()=>void mutate(()=>setOwnerMailThreadLabel(selected.id,v,false),'Label removed.')} style={{padding:7,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>{v} ×</Text></Pressable>)}</View>
+      <View style={{flexDirection:'row',gap:8}}><TextInput value={label} onChangeText={setLabel} placeholder="Add label" placeholderTextColor={theme.muted} style={{flex:1,borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/><Pressable onPress={()=>void addLabel()} style={{padding:11,borderRadius:12,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Add</Text></Pressable></View>
+    </View>:null}
   </ScrollView>;
 }
