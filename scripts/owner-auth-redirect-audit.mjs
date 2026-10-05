@@ -20,10 +20,11 @@ required(auth,"exchangeCodeForSession(code)",'Owner auth callback');
 required(supabase,"flowType:'pkce'",'Owner Supabase client');
 required(envExample,'EXPO_PUBLIC_OWNER_WEB_ORIGIN=https://os.kleenest.us','Owner environment contract');
 required(envExample,'EXPO_PUBLIC_WEB_BASE_URL=/','Owner environment contract');
+required(pagesWorkflow,'actions/configure-pages@v5','Owner Pages deployment');
 required(pagesWorkflow,'actions/upload-pages-artifact@v3','Owner Pages deployment');
 required(pagesWorkflow,'actions/deploy-pages@v4','Owner Pages deployment');
 required(pagesWorkflow,'EXPO_PUBLIC_OWNER_WEB_ORIGIN: https://os.kleenest.us','Owner Pages canonical origin');
-required(pagesWorkflow,'EXPO_PUBLIC_WEB_BASE_URL: /','Owner Pages root base URL');
+required(pagesWorkflow,'EXPO_PUBLIC_WEB_BASE_URL: ${{ steps.pages.outputs.base_path }}','Owner Pages base path');
 
 if(auth.includes("Linking.createURL('/auth'"))throw new Error('Owner OAuth callback must not use a leading-slash path that can drift from the allow-listed native URI.');
 if(/github\.io\/Kleenest_Owner/i.test(auth+config+envExample))throw new Error('Owner production web auth/base configuration must not target the legacy GitHub Pages repository path.');
