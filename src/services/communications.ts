@@ -47,6 +47,7 @@ export type OwnerMailMessage={
   fromEmail:string|null;
   to:string;
   cc:string;
+  bcc?:string;
   subject:string;
   date:string|null;
   messageId:string|null;
