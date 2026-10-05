@@ -20,6 +20,21 @@ export async function setOwnerUserAccess(input:OwnerUserAccessInput){
   return data;
 }
 
+export async function sendOwnerPasswordReset(input:{userId:string;email:string;reason?:string}){
+  await requirePlatformOwner();
+  const email=input.email.trim().toLowerCase();
+  if(!email||!email.includes('@'))throw new Error('A valid account email is required.');
+  const client=getSupabaseClient();
+  const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:'https://kleenest.us/profile/'});
+  if(error)throw new Error(error.message);
+  const audit=await client.rpc('admin_record_password_reset_request',{
+    p_target_user_id:input.userId,
+    p_reason:input.reason?.trim()||'Password reset requested from KleenestOS'
+  });
+  if(audit.error)throw new Error(audit.error.message);
+  return{sent:true,email};
+}
+
 export async function getOwnerUserCapabilityHistory(userId:string){
   const {data,error}=await getSupabaseClient().from('admin_capability_audit').select('id,admin_user_id,target_user_id,previous_state,new_state,reason,created_at').eq('target_user_id',userId).order('created_at',{ascending:false}).limit(50);
   if(error)throw new Error(error.message);
