@@ -32,6 +32,8 @@ export default function IngestionControl(){
 
   const status=object(data?.status);
   const storage=object(data?.storage_guard ?? status.storage_guard);
+  const capacity=object(data?.capacity);
+  const background=object(data?.background);
   const marketStatus=object(status.markets);
   const sources=array(data?.sources);
   const markets=array(data?.markets);
@@ -46,6 +48,22 @@ export default function IngestionControl(){
   const pendingMarkets=num(marketStatus.pending);
   const failedMarkets=num(marketStatus.failed);
   const completedMarkets=num(marketStatus.completed ?? marketStatus.complete);
+  const backgroundAllowed=bool(capacity.allow_background_ingestion);
+  const backgroundReason=text(capacity.reason)||'capacity check pending';
+  const enabledBackgroundSources=num(background.enabled_sources);
+  const dueBackgroundSources=num(background.due_sources);
+  const pressure=storage.pressure_fraction ?? storage.observed_fraction;
+  const capacityDetail=backgroundAllowed
+    ? 'Spare capacity available for background work'
+    : backgroundReason==='active_discovery'
+      ? 'Yielding to active Discovery traffic'
+      : backgroundReason==='production_busy'
+        ? 'Yielding to production traffic'
+        : backgroundReason==='long_running_query'
+          ? 'Yielding to a long-running database task'
+          : backgroundReason==='storage_guard'
+            ? 'Storage guard is holding background work'
+            : `Waiting: ${backgroundReason.replace(/_/g,' ')}`;
 
   if(loading)return <View style={{flex:1,justifyContent:'center',backgroundColor:theme.canvas}}><ActivityIndicator size="large" color={theme.accent}/></View>;
 
@@ -57,17 +75,17 @@ export default function IngestionControl(){
     {error?<View style={{...card,borderColor:theme.danger}}><Text style={{color:theme.danger,fontWeight:'900'}}>Control action failed</Text><Text selectable style={{color:theme.danger}}>{error}</Text></View>:null}
 
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
-      <HealthCard label="Global" value={paused?'Paused':'Running'} tone={paused?'warning':'good'} detail={paused?text(storage.pause_reason)||'Owner/storage guard pause':'Capacity guard is allowing eligible work'}/>
+      <HealthCard label="Global" value={paused?'Paused':backgroundAllowed?'Running':'Yielding'} tone={paused?'warning':backgroundAllowed?'good':'neutral'} detail={paused?text(storage.pause_reason)||'Owner/storage guard pause':capacityDetail}/>
       <HealthCard label="Coverage" value={coverageEnabled?'Ready':'Off'} tone={coverageEnabled?'good':'warning'} detail="Overture-backed expansion"/>
-      <HealthCard label="Markets" value={runningMarkets+pendingMarkets} tone={failedMarkets?'warning':'neutral'} detail={`${runningMarkets} running · ${pendingMarkets} queued · ${completedMarkets} complete`}/>
-      <HealthCard label="Storage guard" value={pct(storage.pause_fraction)} tone={paused?'warning':'neutral'} detail={`Hard stop ${pct(storage.hard_stop_fraction)}`}/>
+      <HealthCard label="Background" value={enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={`${dueBackgroundSources} due now · legacy markets: ${runningMarkets} live / ${pendingMarkets} queued / ${completedMarkets} complete`}/>
+      <HealthCard label="Storage use" value={pct(pressure)} tone={paused?'warning':'neutral'} detail={`Pause at ${pct(storage.pause_fraction)} · hard stop ${pct(storage.hard_stop_fraction)}`}/>
     </View>
 
     <View style={{...card,gap:10}}>
       <SectionHeader title="Master controls" body="These controls act on the real ingestion scheduler and safety guard. Discovery search itself remains usable while background work is paused."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
         <PrimaryAction label={busy==='global'?'Working…':paused?'Resume background ingestion':'Pause background ingestion'} danger={!paused} disabled={!!busy} onPress={()=>act('global',()=>setGlobalIngestionPaused(!paused))}/>
-        <PrimaryAction label={busy==='cycle'?'Starting…':'Run one bounded cycle'} disabled={!!busy||paused} onPress={()=>act('cycle',runBoundedIngestionCycle)}/>
+        <PrimaryAction label={busy==='cycle'?'Starting…':backgroundAllowed?'Run one bounded cycle':'Waiting for spare capacity'} disabled={!!busy||paused||!backgroundAllowed} onPress={()=>act('cycle',runBoundedIngestionCycle)}/>
         <PrimaryAction label={busy==='repair'?'Repairing…':'Repair stalled cells'} disabled={!!busy} onPress={()=>act('repair',repairStalledIngestion)}/>
       </View>
     </View>
