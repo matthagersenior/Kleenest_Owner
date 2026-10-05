@@ -2,7 +2,7 @@ import { useEffect,useMemo,useState } from 'react';
 import { ActivityIndicator,Pressable,ScrollView,Text,TextInput,View } from 'react-native';
 import { ActionSheetCard,EntityRow,OSHero,PrimaryAction,SectionHeader,StatusPill,osColors } from '@/components/KleenestOS';
 import { getOwnerAuthorization,type OwnerAuthorization } from '@/services/ownerAuthorization';
-import { getOwnerUserProgressionRewards,grantOwnerProgressionReward,revokeOwnerProgressionReward,searchOwnerUsers,setOwnerUserAccess } from '@/services/ownerPeople';
+import { getOwnerUserProgressionRewards,grantOwnerProgressionReward,revokeOwnerProgressionReward,searchOwnerUsers,sendOwnerPasswordReset,setOwnerUserAccess } from '@/services/ownerPeople';
 
 const roles=['customer','business','admin'];
 const tiers=['free','premium','family','fleet','enterprise'];
@@ -26,6 +26,7 @@ export default function AccessConsole(){
  async function loadRewards(userId:string){setRewardsLoading(true);try{setRewards(await getOwnerUserProgressionRewards(userId))}catch(c){setError(c instanceof Error?c.message:String(c));setRewards([])}finally{setRewardsLoading(false)}}
  async function choose(user:any){populateAccess(user);await loadRewards(String(user.id))}
  async function save(){if(!selected)return;setBusy(true);setError(null);setMessage(null);try{await setOwnerUserAccess({userId:String(selected.id),role,subscriptionTier:tier,isAdmin,isBusinessUser,reason});const refreshed=await searchOwnerUsers(String(selected.email??selected.username??selected.id));const next=refreshed.find((x:any)=>String(x.id)===String(selected.id))??selected;populateAccess(next);setRows(refreshed);setMessage('Authoritative account access updated and audited.')}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}}
+ async function sendReset(){if(!selected?.email)return;setBusy(true);setError(null);setMessage(null);try{await sendOwnerPasswordReset({userId:String(selected.id),email:String(selected.email),reason:'Password reset requested from People & Access'});setMessage(`Password reset sent to ${String(selected.email)}.`)}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(false)}}
  async function grantReward(reward:any){if(!selected)return;setRewardBusy(String(reward.code));setError(null);setMessage(null);try{await grantOwnerProgressionReward(String(selected.id),String(reward.code),reason||`Grant ${reward.name}`);await loadRewards(String(selected.id));setMessage(`${reward.name} granted to this account.`)}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setRewardBusy(null)}}
  async function revokeReward(reward:any){if(!selected)return;setRewardBusy(String(reward.code));setError(null);setMessage(null);try{await revokeOwnerProgressionReward(String(selected.id),String(reward.code),reason||`Revoke ${reward.name}`);await loadRewards(String(selected.id));setMessage(`${reward.name} Owner grant revoked.`)}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setRewardBusy(null)}}
 
@@ -47,6 +48,7 @@ export default function AccessConsole(){
     <View style={chips}><Chip label="Admin" active={isAdmin} onPress={()=>setIsAdmin(v=>!v)}/><Chip label="Business user" active={isBusinessUser} onPress={()=>setIsBusinessUser(v=>!v)}/></View>
     <Text style={label}>Audit reason</Text><TextInput value={reason} onChangeText={setReason} style={input}/>
     <PrimaryAction label={busy?'Applying…':'Apply authoritative access'} onPress={save} disabled={!canMutate||busy||!reason.trim()}/>
+    {selected.email?<PrimaryAction label={busy?'Sending…':'Send password reset email'} onPress={sendReset} disabled={!canMutate||busy}/>:null}
    </ActionSheetCard>
 
    <View style={{gap:10}}>
