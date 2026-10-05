@@ -35,6 +35,7 @@ const primaryRoutes = [
   ['/sponsored-ads', 'Sponsored Advertising', 'Approve business campaigns, create Kleenest campaigns, control placements, serving and performance.'],
   ['/moderation', 'Trust & Moderation', 'Resolve reports and pending trust queues.'],
   ['/operations', 'Platform Health', 'Inspect data integrity, delivery, backend resources and recent platform activity.'],
+  ['/ingestion', 'Ingestion Control', 'Control Discovery-backed expansion, geographic coverage priorities, source policies, repairs and the global safety throttle.'],
   ['/email-notifications', 'Email Alert Settings', 'Control operational alert rules, escalation, digest cadence, dedupe and delivery history.'],
 ] as const;
 
@@ -197,7 +198,7 @@ export default function KleenestOSCommandCenter() {
     </View>
 
     <View style={{ gap: 9 }}>
-      <SectionHeader title="Operate the platform" body="Daily control surfaces stay first: people, businesses, economy, trust, Discovery health and delivery." />
+      <SectionHeader title="Operate the platform" body="Daily control surfaces stay first: people, businesses, economy, trust, ingestion, Discovery health and delivery." />
       <DomainList routes={primaryRoutes} />
     </View>
 
