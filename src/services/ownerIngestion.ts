@@ -60,3 +60,11 @@ export async function setIdleDemandIngestionEnabled(enabled:boolean){
   });
   return unwrap(data,error);
 }
+
+export async function updateTileIngestionPolicy(patch:{tile_step_degrees?:number;max_tile_subdivision_level?:number;max_parallel_tiles?:number;canonical_batch_size?:number;major_markets_enabled?:boolean}){
+  const {data,error}=await getSupabaseClient().rpc('owner_update_ingestion_capacity_policy',{
+    p_patch:patch,
+    p_reason:'Updated bounded tile ingestion policy from KleenestOS Ingestion Control',
+  });
+  return unwrap(data,error);
+}
