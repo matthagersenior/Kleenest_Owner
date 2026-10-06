@@ -22,7 +22,9 @@ for(const token of [
 ]) assert.ok(inbox.includes(token),`Owner Email Center screen missing ${token}`);
 
 for(const token of [
-  "functions.invoke('owner-email-center'",
+  "invokeFunction<T>('owner-email-center',body)",
+  "client.functions.invoke(functionName",
+  "invokeFunction<{mailboxes:OwnerMailbox[];isAdmin:boolean}>('owner-email-directory'",
   "action:'status'",
   "action:'list_threads'",
   "action:'send'",
