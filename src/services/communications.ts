@@ -15,6 +15,15 @@ export type OwnerMailConnectionStatus={
   waiting_total?:number;
 };
 
+export type OwnerMailbox={
+  id:string;
+  address:string;
+  display_name:string;
+  mailbox_type:'personal'|'shared'|'system'|string;
+  send_enabled:boolean;
+  active:boolean;
+};
+
 export type OwnerMailThreadSummary={
   id:string;
   historyId:string|null;
@@ -31,6 +40,9 @@ export type OwnerMailThreadSummary={
   messageCount:number;
   hasAttachment?:boolean;
   labelNames?:string[];
+  mailboxId?:string|null;
+  mailboxAddress?:string|null;
+  mailboxDisplayName?:string|null;
 };
 
 export type OwnerMailAttachment={
@@ -61,6 +73,7 @@ export type OwnerMailMessage={
 
 export type OwnerMailThread={
   id:string;
+  mailboxId?:string|null;
   historyId:string|null;
   subject:string;
   participants:string[];
@@ -77,12 +90,12 @@ export type OwnerMailThread={
 
 type GatewayInput=Record<string,unknown>;
 
-async function invoke<T>(body:GatewayInput):Promise<T>{
+async function invokeFunction<T>(functionName:string,body:GatewayInput):Promise<T>{
   const client=getSupabaseClient();
   const {data:{session},error:sessionError}=await client.auth.getSession();
   if(sessionError)throw sessionError;
   if(!session?.access_token)throw new Error('Owner sign-in is required.');
-  const {data,error}=await client.functions.invoke('owner-email-center',{
+  const {data,error}=await client.functions.invoke(functionName,{
     body,
     headers:{Authorization:`Bearer ${session.access_token}`},
   });
@@ -102,6 +115,14 @@ async function invoke<T>(body:GatewayInput):Promise<T>{
   return data as T;
 }
 
+function invoke<T>(body:GatewayInput):Promise<T>{
+  return invokeFunction<T>('owner-email-center',body);
+}
+
+export function listOwnerMailboxes(){
+  return invokeFunction<{mailboxes:OwnerMailbox[];isAdmin:boolean}>('owner-email-directory',{action:'list_mailboxes'});
+}
+
 export function getOwnerMailStatus(){
   return invoke<OwnerMailConnectionStatus>({action:'status'});
 }
@@ -112,6 +133,7 @@ export function listOwnerMailThreads(input:{
   maxResults?:number;
   mailbox?:'inbox'|'sent'|'drafts'|'spam'|'trash'|'all';
   direction?:'any'|'incoming'|'outgoing';
+  mailboxId?:string;
 }={}){
   return invoke<{threads:OwnerMailThreadSummary[];nextPageToken:string|null}>({
     action:'list_threads',
@@ -120,6 +142,7 @@ export function listOwnerMailThreads(input:{
     maxResults:Math.min(Math.max(input.maxResults||50,1),100),
     mailbox:input.mailbox||'inbox',
     direction:input.direction||'any',
+    mailboxId:input.mailboxId||'',
   });
 }
 
@@ -153,10 +176,11 @@ export function setOwnerMailThreadRead(threadId:string,read:boolean){
   return invoke<{ok:true}>({action:'set_read',threadId,read});
 }
 
-export function saveOwnerMailDraft(input:{draftId?:string|null;to?:string;cc?:string;bcc?:string;subject?:string;body?:string}){
+export function saveOwnerMailDraft(input:{draftId?:string|null;mailboxId?:string|null;to?:string;cc?:string;bcc?:string;subject?:string;body?:string}){
   return invoke<{ok:true;threadId:string;messageId:string}>({
     action:'save_draft',
     draftId:input.draftId||'',
+    mailboxId:input.mailboxId||'',
     to:input.to?.trim()||'',
     cc:input.cc?.trim()||'',
     bcc:input.bcc?.trim()||'',
@@ -165,9 +189,10 @@ export function saveOwnerMailDraft(input:{draftId?:string|null;to?:string;cc?:st
   });
 }
 
-export function sendOwnerMail(input:{to:string;cc?:string;bcc?:string;subject:string;body:string}){
+export function sendOwnerMail(input:{mailboxId?:string|null;to:string;cc?:string;bcc?:string;subject:string;body:string}){
   return invoke<{messageId:string;threadId:string|null}>({
     action:'send',
+    mailboxId:input.mailboxId||'',
     to:input.to.trim(),
     cc:input.cc?.trim()||'',
     bcc:input.bcc?.trim()||'',
