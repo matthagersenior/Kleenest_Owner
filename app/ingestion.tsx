@@ -1,7 +1,7 @@
 import { useCallback,useEffect,useMemo,useState } from 'react';
 import { ActivityIndicator,Pressable,RefreshControl,ScrollView,Text,View } from 'react-native';
 import { DiagnosticDisclosure,HealthCard,OSHero,PrimaryAction,SectionHeader,StatusPill,useOSCardStyle } from '@/components/KleenestOS';
-import { getOwnerIngestionControl,repairStalledIngestion,runBoundedIngestionCycle,setCoverageMarketEnabled,setGlobalIngestionPaused,setIngestionSourceEnabled,setIdleDemandIngestionEnabled } from '@/services/ownerIngestion';
+import { getOwnerIngestionControl,repairStalledIngestion,runBoundedIngestionCycle,setCoverageMarketEnabled,setGlobalIngestionPaused,setIngestionSourceEnabled,setIdleDemandIngestionEnabled,updateTileIngestionPolicy } from '@/services/ownerIngestion';
 import { useOwnerTheme } from '@/services/theme';
 
 type Snapshot=Record<string,unknown>;
