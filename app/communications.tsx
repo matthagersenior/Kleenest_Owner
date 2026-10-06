@@ -130,7 +130,7 @@ export default function Communications(){
     {notice?<View style={{...card,borderColor:theme.warning}}><Text style={{fontWeight:'800',color:theme.warning}}>{notice}</Text></View>:null}
 
     <View style={{...card,gap:8}}>
-      <SectionHeader title="Email service" body="KleenestOS is the system of record for shared role addresses such as Support, Admin, Info and Feedback."/>
+      <SectionHeader title="Email service" body="No Gmail connection is required. KleenestOS is the system of record for shared role addresses such as Support, Admin, Info and Feedback."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
         <StatusPill label={status?.providerConfigured?'RESEND CONNECTED':'PROVIDER PENDING'} tone={status?.providerConfigured?'good':'warning'}/>
         <StatusPill label={status?.domainStatus==='verified'?'DOMAIN VERIFIED':'DOMAIN DNS PENDING'} tone={status?.domainStatus==='verified'?'good':'warning'}/>
