@@ -51,3 +51,12 @@ export async function setCoverageMarketEnabled(input:{marketId:string;priority:n
   });
   return unwrap(data,error);
 }
+
+
+export async function setIdleDemandIngestionEnabled(enabled:boolean){
+  const {data,error}=await getSupabaseClient().rpc('owner_update_ingestion_capacity_policy',{
+    p_patch:{idle_demand_enabled:enabled},
+    p_reason:`${enabled?'Enabled':'Disabled'} idle-demand acceleration from KleenestOS Ingestion Control`,
+  });
+  return unwrap(data,error);
+}
