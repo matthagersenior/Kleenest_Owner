@@ -37,6 +37,7 @@ export default function IngestionControl(){
   const canonical=object(data?.canonical);
   const capacityPolicy=object(data?.capacity_policy);
   const background=object(data?.background);
+  const pipeline=object(data?.pipeline);
   const marketStatus=object(status.markets);
   const sources=array(data?.sources);
   const markets=array(data?.markets);
@@ -84,6 +85,7 @@ export default function IngestionControl(){
       <HealthCard label="Canonical locations" value={num(canonical.total).toLocaleString()} tone="good" detail={`+${num(canonical.added_1h).toLocaleString()} last hour · +${num(canonical.added_24h).toLocaleString()} last 24h`}/>
       <HealthCard label="Global" value={paused?'Paused':backgroundAllowed?'Running':'Yielding'} tone={paused?'warning':backgroundAllowed?'good':'neutral'} detail={paused?text(storage.pause_reason)||'Owner/storage guard pause':capacityDetail}/>
       <HealthCard label="Coverage" value={coverageEnabled?'Ready':'Off'} tone={coverageEnabled?'good':'warning'} detail="Overture-backed expansion"/>
+      <HealthCard label="Pipeline backlog" value={`${num(pipeline.pending_rows).toLocaleString()} rows`} tone={num(pipeline.failed_batches)?'warning':'good'} detail={`${num(pipeline.pending_batches)} staged batches · ${num(pipeline.completed_1h)} completed last hour`}/>
       <HealthCard label="Background" value={enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={`${dueBackgroundSources} due now · ${capacityMode} mode · ${backgroundPercent}% background capacity`}/>
       <HealthCard label="Storage use" value={pct(pressure)} tone={paused?'warning':'neutral'} detail={`Pause at ${pct(storage.pause_fraction)} · hard stop ${pct(storage.hard_stop_fraction)}`}/>
     </View>
