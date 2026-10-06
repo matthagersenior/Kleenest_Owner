@@ -3,10 +3,10 @@ import { Pressable,RefreshControl,ScrollView,Text,TextInput,View } from 'react-n
 import { OSHero,SectionHeader,StatusPill,useOSCardStyle } from '@/components/KleenestOS';
 import { useOwnerTheme } from '@/services/theme';
 import {
-  archiveOwnerMailThread,blockOwnerMailThreadSender,forwardOwnerMailThread,getOwnerMailStatus,getOwnerMailThread,listOwnerMailThreads,
+  archiveOwnerMailThread,blockOwnerMailThreadSender,forwardOwnerMailThread,getOwnerMailStatus,getOwnerMailThread,listOwnerMailboxes,listOwnerMailThreads,
   replyOwnerMailThread,saveOwnerMailDraft,sendOwnerMail,setOwnerMailThreadInbox,setOwnerMailThreadLabel,setOwnerMailThreadRead,
   setOwnerMailThreadStarred,spamOwnerMailThread,trashOwnerMailThread,
-  type OwnerMailConnectionStatus,type OwnerMailThread,type OwnerMailThreadSummary,
+  type OwnerMailbox,type OwnerMailConnectionStatus,type OwnerMailThread,type OwnerMailThreadSummary,
 } from '@/services/communications';
 
 type ViewKey='action'|'inbox'|'waiting'|'sent'|'drafts'|'spam'|'trash'|'all';
@@ -29,6 +29,9 @@ const date=(v:DateValue)=>{
 export default function Communications(){
   const theme=useOwnerTheme(); const card=useOSCardStyle();
   const[status,setStatus]=useState<OwnerMailConnectionStatus|null>(null);
+  const[mailboxes,setMailboxes]=useState<OwnerMailbox[]>([]);
+  const[mailboxId,setMailboxId]=useState('');
+  const[composeMailboxId,setComposeMailboxId]=useState('');
   const[threads,setThreads]=useState<OwnerMailThreadSummary[]>([]);
   const[selected,setSelected]=useState<OwnerMailThread|null>(null);
   const[view,setView]=useState<ViewKey>('action'); const[query,setQuery]=useState(''); const[unread,setUnread]=useState(false);
@@ -38,16 +41,20 @@ export default function Communications(){
   const[forward,setForward]=useState(false); const[forwardTo,setForwardTo]=useState(''); const[forwardBody,setForwardBody]=useState('');
   const[label,setLabel]=useState('');
   const unreadCount=useMemo(()=>threads.filter(t=>t.unread).length,[threads]);
+  const activeMailbox=useMemo(()=>mailboxes.find(m=>m.id===mailboxId)||null,[mailboxes,mailboxId]);
+  const composeMailbox=useMemo(()=>mailboxes.find(m=>m.id===composeMailboxId)||null,[mailboxes,composeMailboxId]);
   const ready=Boolean(status?.connected);
 
-  async function load(nextView=view){
+  async function load(nextView=view,nextMailboxId=mailboxId){
     setBusy(true);
     try{
-      const [s,r]=await Promise.all([
+      const [s,d,r]=await Promise.all([
         getOwnerMailStatus(),
-        listOwnerMailThreads({query,unreadOnly:unread,maxResults:75,mailbox:views[nextView].mailbox,direction:views[nextView].direction}),
+        listOwnerMailboxes(),
+        listOwnerMailThreads({query,unreadOnly:unread,maxResults:75,mailbox:views[nextView].mailbox,direction:views[nextView].direction,mailboxId:nextMailboxId||undefined}),
       ]);
-      setStatus(s); setThreads(r.threads); setView(nextView); setNotice('');
+      const shared=(d.mailboxes||[]).filter(m=>m.active&&m.mailbox_type==='shared');
+      setStatus(s); setMailboxes(shared); setThreads(r.threads); setView(nextView); setNotice('');
     }catch(e:any){setNotice(String(e?.message||'Email Center could not be loaded.'))}
     finally{setBusy(false)}
   }
@@ -63,16 +70,17 @@ export default function Communications(){
   }
   async function refreshSelected(){if(selected)setSelected((await getOwnerMailThread(selected.id)).thread)}
   function clearCompose(){
-    setDraftId(null);setTo('');setCc('');setBcc('');setSubject('');setBody('');setCompose(false);
+    setDraftId(null);setTo('');setCc('');setBcc('');setSubject('');setBody('');setComposeMailboxId('');setCompose(false);
   }
   function startCompose(){
-    setDraftId(null);setTo('');setCc('');setBcc('');setSubject('');setBody('');setCompose(true);
+    const preferred=mailboxId||mailboxes.find(m=>m.address==='support@kleenest.us')?.id||mailboxes[0]?.id||'';
+    setDraftId(null);setTo('');setCc('');setBcc('');setSubject('');setBody('');setComposeMailboxId(preferred);setCompose(true);
   }
   async function sendNew(){
     if(!to.trim()||!subject.trim()||!body.trim())return;
     setBusy(true);
     try{
-      await sendOwnerMail({to,cc,bcc,subject,body});
+      await sendOwnerMail({mailboxId:composeMailboxId||undefined,to,cc,bcc,subject,body});
       if(draftId)await trashOwnerMailThread(draftId);
       clearCompose();setNotice('Email sent from Kleenest.');await load('sent');
     }catch(e:any){setNotice(String(e?.message||'Email could not be sent.'))}finally{setBusy(false)}
@@ -81,14 +89,15 @@ export default function Communications(){
     if(!to.trim()&&!cc.trim()&&!bcc.trim()&&!subject.trim()&&!body.trim())return;
     setBusy(true);
     try{
-      const saved=await saveOwnerMailDraft({draftId,to,cc,bcc,subject,body});
+      const saved=await saveOwnerMailDraft({draftId,mailboxId:composeMailboxId||undefined,to,cc,bcc,subject,body});
       setDraftId(saved.threadId);setCompose(false);setNotice('Draft saved.');await load('drafts');
     }catch(e:any){setNotice(String(e?.message||'Draft could not be saved.'))}finally{setBusy(false)}
   }
   function editDraft(){
     if(!selected||selected.folder!=='drafts')return;
     const message=selected.messages[selected.messages.length-1];
-    setDraftId(selected.id);setTo(message?.to||'');setCc(message?.cc||'');setBcc(message?.bcc||'');setSubject(selected.subject||'');setBody(message?.body||'');
+    const preferred=selected.mailboxId||mailboxId||mailboxes.find(m=>m.address==='support@kleenest.us')?.id||mailboxes[0]?.id||'';
+    setDraftId(selected.id);setTo(message?.to||'');setCc(message?.cc||'');setBcc(message?.bcc||'');setSubject(selected.subject||'');setBody(message?.body||'');setComposeMailboxId(preferred);
     setSelected(null);setCompose(true);setNotice('Editing saved draft.');
   }
   async function sendReply(all=false){
@@ -112,8 +121,8 @@ export default function Communications(){
   }
 
   return <ScrollView refreshControl={<RefreshControl refreshing={busy} onRefresh={()=>void load()}/>} contentContainerStyle={{padding:16,gap:14,paddingBottom:80,backgroundColor:theme.canvas}}>
-    <OSHero eyebrow="KLEENESTOS · COMMUNICATIONS" title="Kleenest Email Center" body="A first-party inbox for support, outreach, partnerships and operations. KleenestOS owns the threads; Resend handles delivery.">
-      <StatusPill label={status?.emailAddress||'support@kleenest.us'} tone={ready?'good':'warning'}/>
+    <OSHero eyebrow="KLEENESTOS · COMMUNICATIONS" title="Kleenest Email Center" body="Shared Kleenest addresses stay operational here. Personal named addresses stay separate so they can be used outside KleenestOS.">
+      <StatusPill label={activeMailbox?.address||'ALL SHARED MAIL'} tone={ready?'good':'warning'}/>
       <StatusPill label={ready?'MAIL LIVE':'SETUP IN PROGRESS'} tone={ready?'good':'warning'}/>
       {unreadCount?<StatusPill label={`${unreadCount} UNREAD`} tone="warning"/>:null}
     </OSHero>
@@ -121,13 +130,21 @@ export default function Communications(){
     {notice?<View style={{...card,borderColor:theme.warning}}><Text style={{fontWeight:'800',color:theme.warning}}>{notice}</Text></View>:null}
 
     <View style={{...card,gap:8}}>
-      <SectionHeader title="Email service" body="No Gmail connection is required. KleenestOS is the system of record."/>
+      <SectionHeader title="Email service" body="KleenestOS is the system of record for shared role addresses such as Support, Admin, Info and Feedback."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
         <StatusPill label={status?.providerConfigured?'RESEND CONNECTED':'PROVIDER PENDING'} tone={status?.providerConfigured?'good':'warning'}/>
         <StatusPill label={status?.domainStatus==='verified'?'DOMAIN VERIFIED':'DOMAIN DNS PENDING'} tone={status?.domainStatus==='verified'?'good':'warning'}/>
         <StatusPill label={status?.webhookEnabled?'INBOUND LIVE':'INBOUND PENDING'} tone={status?.webhookEnabled?'good':'warning'}/>
       </View>
-      <Text style={{fontSize:12,color:theme.muted}}>Primary: support@kleenest.us · Fallback: {status?.fallbackAddress||'Kleenestapp@gmail.com'}</Text>
+      <Text style={{fontSize:12,color:theme.muted}}>Personal mail such as matt@kleenest.us is intentionally excluded from this shared operations center.</Text>
+    </View>
+
+    <View style={{...card,gap:10}}>
+      <SectionHeader title="Shared inboxes" body="Filter the Email Center by role address. Compose and replies stay attached to the mailbox that owns the conversation."/>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        <Pressable onPress={()=>{setMailboxId('');setSelected(null);void load(view,'')}} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:mailboxId===''?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:mailboxId===''?theme.accentText:theme.accent}}>All shared</Text></Pressable>
+        {mailboxes.map(m=><Pressable key={m.id} onPress={()=>{setMailboxId(m.id);setSelected(null);void load(view,m.id)}} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:m.id===mailboxId?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:m.id===mailboxId?theme.accentText:theme.accent}}>{m.address}</Text></Pressable>)}
+      </View>
     </View>
 
     <View style={{...card,gap:10}}>
@@ -141,14 +158,17 @@ export default function Communications(){
     </View>
 
     {compose?<View style={{...card,gap:8,borderColor:theme.accent}}>
-      <SectionHeader title={draftId?'Edit draft':'New email'} body={ready?'Send from Kleenest <support@kleenest.us>.':'Delivery is temporarily unavailable, but drafts can still be saved.'}/>
+      <SectionHeader title={draftId?'Edit draft':'New email'} body={ready?`Send from ${composeMailbox?.display_name||'Kleenest'} <${composeMailbox?.address||'select a shared mailbox'}>.`:'Delivery is temporarily unavailable, but drafts can still be saved.'}/>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        {mailboxes.filter(m=>m.send_enabled).map(m=><Pressable key={m.id} onPress={()=>setComposeMailboxId(m.id)} style={{paddingHorizontal:10,paddingVertical:8,borderRadius:999,backgroundColor:m.id===composeMailboxId?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:m.id===composeMailboxId?theme.accentText:theme.accent}}>{m.address}</Text></Pressable>)}
+      </View>
       {[
         ['To',to,setTo],['Cc (optional)',cc,setCc],['Bcc (optional)',bcc,setBcc],['Subject',subject,setSubject],
       ].map(([p,v,s]:any)=><TextInput key={p} value={v} onChangeText={s} placeholder={p} placeholderTextColor={theme.muted} style={{borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>)}
       <TextInput value={body} onChangeText={setBody} placeholder="Write your message…" placeholderTextColor={theme.muted} multiline style={{minHeight:130,textAlignVertical:'top',borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
       <View style={{flexDirection:'row',gap:8,flexWrap:'wrap'}}>
         <Pressable disabled={busy||(!to.trim()&&!cc.trim()&&!bcc.trim()&&!subject.trim()&&!body.trim())} onPress={()=>void saveDraft()} style={{padding:12,borderRadius:12,alignItems:'center',backgroundColor:theme.accentSoft,opacity:busy||(!to.trim()&&!cc.trim()&&!bcc.trim()&&!subject.trim()&&!body.trim())?0.5:1}}><Text style={{fontWeight:'900',color:theme.accent}}>Save draft</Text></Pressable>
-        <Pressable disabled={!ready||busy||!to.trim()||!subject.trim()||!body.trim()} onPress={()=>void sendNew()} style={{padding:12,borderRadius:12,alignItems:'center',backgroundColor:theme.accent,opacity:!ready||busy||!to.trim()||!subject.trim()||!body.trim()?0.5:1}}><Text style={{fontWeight:'900',color:theme.accentText}}>Send from Kleenest</Text></Pressable>
+        <Pressable disabled={!ready||busy||!composeMailboxId||!to.trim()||!subject.trim()||!body.trim()} onPress={()=>void sendNew()} style={{padding:12,borderRadius:12,alignItems:'center',backgroundColor:theme.accent,opacity:!ready||busy||!composeMailboxId||!to.trim()||!subject.trim()||!body.trim()?0.5:1}}><Text style={{fontWeight:'900',color:theme.accentText}}>Send from {composeMailbox?.address||'Kleenest'}</Text></Pressable>
       </View>
     </View>:null}
 
@@ -161,15 +181,17 @@ export default function Communications(){
       </View>
     </View>
 
-    {threads.length===0?<View style={{...card}}><Text style={{fontWeight:'900',color:theme.ink}}>{busy?'Loading mail…':'No conversations in this view'}</Text><Text style={{fontSize:12,color:theme.muted,marginTop:5}}>New mail to support@kleenest.us will appear here automatically.</Text></View>:threads.map(t=><Pressable key={t.id} onPress={()=>void open(t)} style={{...card,gap:5,borderColor:t.unread?theme.warning:theme.line}}>
+    {threads.length===0?<View style={{...card}}><Text style={{fontWeight:'900',color:theme.ink}}>{busy?'Loading mail…':'No conversations in this view'}</Text><Text style={{fontSize:12,color:theme.muted,marginTop:5}}>New mail to {activeMailbox?.address||'any shared Kleenest address'} will appear here automatically.</Text></View>:threads.map(t=><Pressable key={t.id} onPress={()=>void open(t)} style={{...card,gap:5,borderColor:t.unread?theme.warning:theme.line}}>
       <View style={{flexDirection:'row',gap:8}}><Text numberOfLines={1} style={{flex:1,fontWeight:t.unread?'900':'800',color:theme.ink}}>{t.subject}</Text>{t.starred?<Text style={{color:theme.warning}}>★</Text>:null}</View>
       <Text numberOfLines={1} style={{fontSize:12,fontWeight:'800',color:theme.accent}}>{t.from||t.fromEmail||'Conversation'}</Text>
+      <Text numberOfLines={1} style={{fontSize:11,fontWeight:'800',color:theme.muted}}>{t.mailboxAddress||'Shared mailbox'}</Text>
       <Text numberOfLines={2} style={{fontSize:12,lineHeight:18,color:theme.muted}}>{t.snippet}</Text>
       <Text style={{fontSize:11,color:theme.muted}}>{String(t.folder||views[view].mailbox).toUpperCase()} · {t.latestSent?'KLEENEST LAST':'INBOUND LAST'} · {date(t.date)} · {t.messageCount} message{t.messageCount===1?'':'s'}</Text>
     </Pressable>)}
 
     {selected?<View style={{...card,gap:12,borderColor:theme.accent}}>
       <Text style={{fontSize:18,fontWeight:'900',color:theme.ink}}>{selected.subject}</Text>
+      <StatusPill label={selected.mailboxAddress||'SHARED MAILBOX'} tone="good"/>
       <Text style={{fontSize:12,color:theme.muted}}>{selected.participants.join(' · ')}</Text>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>
         {selected.folder==='drafts'?<Pressable onPress={editDraft} style={{padding:8,borderRadius:999,backgroundColor:theme.accent}}><Text style={{fontWeight:'900',color:theme.accentText}}>Edit draft</Text></Pressable>:null}
