@@ -8,6 +8,7 @@ type Snapshot=Record<string,unknown>;
 type Row=Record<string,unknown>;
 
 const SOURCE_LABELS:Record<string,string>={
+  osm:'OpenStreetMap / Overpass',
   overture:'Overture Places',
   data_gov:'Government & civic data',
 };
@@ -33,6 +34,7 @@ export default function IngestionControl(){
   const status=object(data?.status);
   const storage=object(data?.storage_guard ?? status.storage_guard);
   const capacity=object(data?.capacity);
+  const canonical=object(data?.canonical);
   const capacityPolicy=object(data?.capacity_policy);
   const background=object(data?.background);
   const marketStatus=object(status.markets);
@@ -79,6 +81,7 @@ export default function IngestionControl(){
     {error?<View style={{...card,borderColor:theme.danger}}><Text style={{color:theme.danger,fontWeight:'900'}}>Control action failed</Text><Text selectable style={{color:theme.danger}}>{error}</Text></View>:null}
 
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
+      <HealthCard label="Canonical locations" value={num(canonical.total).toLocaleString()} tone="good" detail={`+${num(canonical.added_1h).toLocaleString()} last hour · +${num(canonical.added_24h).toLocaleString()} last 24h`}/>
       <HealthCard label="Global" value={paused?'Paused':backgroundAllowed?'Running':'Yielding'} tone={paused?'warning':backgroundAllowed?'good':'neutral'} detail={paused?text(storage.pause_reason)||'Owner/storage guard pause':capacityDetail}/>
       <HealthCard label="Coverage" value={coverageEnabled?'Ready':'Off'} tone={coverageEnabled?'good':'warning'} detail="Overture-backed expansion"/>
       <HealthCard label="Background" value={enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={`${dueBackgroundSources} due now · ${capacityMode} mode · ${backgroundPercent}% background capacity`}/>
