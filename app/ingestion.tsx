@@ -1,7 +1,7 @@
 import { useCallback,useEffect,useMemo,useState } from 'react';
 import { ActivityIndicator,Pressable,RefreshControl,ScrollView,Text,View } from 'react-native';
 import { DiagnosticDisclosure,HealthCard,OSHero,PrimaryAction,SectionHeader,StatusPill,useOSCardStyle } from '@/components/KleenestOS';
-import { getOwnerIngestionControl,repairStalledIngestion,runBoundedIngestionCycle,setCoverageMarketEnabled,setGlobalIngestionPaused,setIngestionSourceEnabled } from '@/services/ownerIngestion';
+import { getOwnerIngestionControl,repairStalledIngestion,runBoundedIngestionCycle,setCoverageMarketEnabled,setGlobalIngestionPaused,setIngestionSourceEnabled,setIdleDemandIngestionEnabled } from '@/services/ownerIngestion';
 import { useOwnerTheme } from '@/services/theme';
 
 type Snapshot=Record<string,unknown>;
@@ -33,6 +33,7 @@ export default function IngestionControl(){
   const status=object(data?.status);
   const storage=object(data?.storage_guard ?? status.storage_guard);
   const capacity=object(data?.capacity);
+  const capacityPolicy=object(data?.capacity_policy);
   const background=object(data?.background);
   const marketStatus=object(status.markets);
   const sources=array(data?.sources);
@@ -49,6 +50,9 @@ export default function IngestionControl(){
   const failedMarkets=num(marketStatus.failed);
   const completedMarkets=num(marketStatus.completed ?? marketStatus.complete);
   const backgroundAllowed=bool(capacity.allow_background_ingestion);
+  const idleDemandEnabled=bool(capacityPolicy.idle_demand_enabled ?? capacity.idle_demand_enabled);
+  const capacityMode=text(capacity.mode)||'unknown';
+  const backgroundPercent=num(capacity.background_percent);
   const backgroundReason=text(capacity.reason)||'capacity check pending';
   const enabledBackgroundSources=num(background.enabled_sources);
   const dueBackgroundSources=num(background.due_sources);
@@ -77,13 +81,14 @@ export default function IngestionControl(){
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
       <HealthCard label="Global" value={paused?'Paused':backgroundAllowed?'Running':'Yielding'} tone={paused?'warning':backgroundAllowed?'good':'neutral'} detail={paused?text(storage.pause_reason)||'Owner/storage guard pause':capacityDetail}/>
       <HealthCard label="Coverage" value={coverageEnabled?'Ready':'Off'} tone={coverageEnabled?'good':'warning'} detail="Overture-backed expansion"/>
-      <HealthCard label="Background" value={enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={`${dueBackgroundSources} due now · legacy markets: ${runningMarkets} live / ${pendingMarkets} queued / ${completedMarkets} complete`}/>
+      <HealthCard label="Background" value={enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={`${dueBackgroundSources} due now · ${capacityMode} mode · ${backgroundPercent}% background capacity`}/>
       <HealthCard label="Storage use" value={pct(pressure)} tone={paused?'warning':'neutral'} detail={`Pause at ${pct(storage.pause_fraction)} · hard stop ${pct(storage.hard_stop_fraction)}`}/>
     </View>
 
     <View style={{...card,gap:10}}>
       <SectionHeader title="Master controls" body="These controls act on the real ingestion scheduler and safety guard. Discovery search itself remains usable while background work is paused."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        <PrimaryAction label={busy==='idle-demand'?'Working…':idleDemandEnabled?'Idle-demand acceleration ON':'Enable idle-demand acceleration'} danger={idleDemandEnabled} disabled={!!busy} onPress={()=>act('idle-demand',()=>setIdleDemandIngestionEnabled(!idleDemandEnabled))}/>
         <PrimaryAction label={busy==='global'?'Working…':paused?'Resume background ingestion':'Pause background ingestion'} danger={!paused} disabled={!!busy} onPress={()=>act('global',()=>setGlobalIngestionPaused(!paused))}/>
         <PrimaryAction label={busy==='cycle'?'Starting…':backgroundAllowed?'Run one bounded cycle':'Waiting for spare capacity'} disabled={!!busy||paused||!backgroundAllowed} onPress={()=>act('cycle',runBoundedIngestionCycle)}/>
         <PrimaryAction label={busy==='repair'?'Repairing…':'Repair stalled cells'} disabled={!!busy} onPress={()=>act('repair',repairStalledIngestion)}/>
