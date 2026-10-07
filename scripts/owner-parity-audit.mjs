@@ -15,7 +15,8 @@ if(!service.includes('signInWithPassword')||!service.includes('is_platform_owner
 if(!ownerAuthorization.includes("rpc('admin_authorization_v1')"))throw new Error('Owner mutation guard must use canonical admin_authorization_v1 authority');
 if(!ownerAuthorization.replace(/\s+/g,'').includes('if(!authorization.authorized)'))throw new Error('Owner mutation guard must accept every session authorized by canonical server authority');
 for(const token of ['OWNER CONTROL CENTER','KleenestOS','showPassword','secureTextEntry={!showPassword}','Show password','Hide password'])if(!auth.includes(token))throw new Error(`Owner sign-in visibility contract missing ${token}`);
-for(const token of ['getSession','onAuthStateChange','Redirect href="/auth"','Owner Sign In'])if(!layout.includes(token))throw new Error(`Owner root authentication gate missing ${token}`);
+for(const token of ['getSession','onAuthStateChange','Owner Sign In'])if(!layout.includes(token))throw new Error(`Owner root authentication gate missing ${token}`);
+if(!layout.includes("if(!signedIn&&!onAuth)return <Redirect")||!layout.includes("'/auth'"))throw new Error('Owner root authentication gate must redirect signed-out users through /auth.');
 for(const token of ["name: 'KleenestOS'","icon: './assets/app-icon.png'","package: 'com.kleenest.owner'"])if(!config.includes(token))throw new Error(`KleenestOS app identity missing ${token}`);
 if(pkg.scripts?.postinstall!=='node scripts/install-app-icon.mjs')throw new Error('KleenestOS launcher icon installer is not wired to postinstall');
 for(const token of ['Continue with Google','signInWithOAuth','exchangeCodeForSession','Linking.createURL','Linking.openURL','authorizeOwnerSession'])if(!(service+'\n'+auth).includes(token))throw new Error(`Owner Google auth contract missing ${token}`);

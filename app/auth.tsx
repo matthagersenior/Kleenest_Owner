@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { useEffect,useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams,useRouter } from 'expo-router';
 import { Platform,Pressable,ScrollView,Text,TextInput,View } from 'react-native';
 import { getSupabaseClient } from '@/lib/supabase';
 import { signInOwner } from '@/services/controlPlane';
@@ -8,9 +8,7 @@ import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 import { useOwnerTheme } from '@/services/theme';
 
 const ownerWebOrigin=(process.env.EXPO_PUBLIC_OWNER_WEB_ORIGIN||'https://os.kleenest.us').replace(/\/+$/,'');
-const ownerRedirect=Platform.OS==='web'
-  ? `${ownerWebOrigin}/auth`
-  : Linking.createURL('auth',{scheme:'kleenest-owner',isTripleSlashed:false});
+const ownerNativeRedirect=Linking.createURL('auth',{scheme:'kleenest-owner',isTripleSlashed:false});
 
 type AuthMode='signin'|'signup';
 function messageOf(value:unknown){
@@ -34,6 +32,13 @@ async function authorizeOwnerSession(){
 
 export default function OwnerSignIn(){
   const router=useRouter();
+  const params=useLocalSearchParams<{returnTo?:string|string[]}>();
+  const requestedReturnTo=Array.isArray(params.returnTo)?params.returnTo[0]:params.returnTo;
+  const returnToMail=requestedReturnTo==='/mail';
+  const postAuthPath=returnToMail?'/mail' as const:'/' as const;
+  const ownerRedirect=Platform.OS==='web'
+    ? `${ownerWebOrigin}/auth${returnToMail?'?returnTo=%2Fmail':''}`
+    : ownerNativeRedirect;
   const theme=useOwnerTheme();
   const[mode,setMode]=useState<AuthMode>('signin');
   const[email,setEmail]=useState('');
@@ -55,7 +60,7 @@ export default function OwnerSignIn(){
       const {error:exchangeError}=await supabase.auth.exchangeCodeForSession(code);
       if(exchangeError)throw exchangeError;
       await authorizeOwnerSession();
-      router.replace('/');
+      router.replace(postAuthPath);
       return true;
     }catch(c){
       await supabase.auth.signOut({scope:'local'});
@@ -67,7 +72,7 @@ export default function OwnerSignIn(){
 
   async function signIn(){
     setBusy(true);setError(null);setNotice(null);
-    try{await signInOwner(email,password);await authorizeOwnerSession();router.replace('/');}
+    try{await signInOwner(email,password);await authorizeOwnerSession();router.replace(postAuthPath);}
     catch(c){setError(messageOf(c));}
     finally{setBusy(false);}
   }
@@ -83,7 +88,7 @@ export default function OwnerSignIn(){
       const {data,error:signupError}=await client.auth.signUp({email:cleanEmail,password,options:{emailRedirectTo:ownerRedirect}});
       if(signupError)throw signupError;
       if(data.session){
-        try{await authorizeOwnerSession();router.replace('/');return;}
+        try{await authorizeOwnerSession();router.replace(postAuthPath);return;}
         catch{await client.auth.signOut({scope:'local'});}
       }
       setNotice('Account created. Confirm your email if prompted. KleenestOS owner/admin authority is granted separately, so creating an account does not unlock platform controls by itself.');
