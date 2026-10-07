@@ -1,0 +1,25 @@
+{
+  "id": "/mail",
+  "name": "Kleenest Mail",
+  "short_name": "Kleenest Mail",
+  "description": "Secure personal and operational email for @kleenest.us.",
+  "start_url": "/mail",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6faf7",
+  "theme_color": "#0d4f3c",
+  "icons": [
+    {
+      "src": "/mail-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/mail-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
