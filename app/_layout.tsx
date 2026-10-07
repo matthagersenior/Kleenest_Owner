@@ -16,6 +16,7 @@ export default function RootLayout(){
  const onAuth=segments[0]==='auth';
  const onSearch=segments[0]==='search';
  const onAccount=segments[0]==='account';
+ const onMail=segments[0]==='mail';
 
  useEffect(()=>{
   let mounted=true;
@@ -38,8 +39,8 @@ export default function RootLayout(){
     tabBarActiveTintColor:theme.accent,
     tabBarInactiveTintColor:theme.muted,
     tabBarLabelStyle:{fontWeight:'800',fontSize:10},
-    tabBarStyle:onAuth?{display:'none'}:{backgroundColor:theme.surface,borderTopColor:theme.line},
-    headerRight:()=>onAuth?null:<View style={{flexDirection:'row',gap:7,marginRight:8}}>
+    tabBarStyle:onAuth||onMail?{display:'none'}:{backgroundColor:theme.surface,borderTopColor:theme.line},
+    headerRight:()=>onAuth||onMail?null:<View style={{flexDirection:'row',gap:7,marginRight:8}}>
       {!onSearch?<Pressable accessibilityRole="button" accessibilityLabel="Search KleenestOS" onPress={()=>router.push('/search')} style={{paddingHorizontal:10,paddingVertical:7,borderRadius:999,backgroundColor:theme.surfaceRaised,borderWidth:1,borderColor:theme.line}}><Text style={{fontWeight:'900',color:theme.accent}}>⌕ Search</Text></Pressable>:null}
       {!onAccount?<Pressable accessibilityRole="button" accessibilityLabel="Open Owner profile and themes" onPress={()=>router.push('/account')} style={{paddingHorizontal:10,paddingVertical:7,borderRadius:999,backgroundColor:theme.accentSoft,borderWidth:1,borderColor:theme.line}}><Text style={{fontWeight:'900',color:theme.accent}}>Profile</Text></Pressable>:null}
     </View>
@@ -51,6 +52,7 @@ export default function RootLayout(){
     <Tabs.Screen name="developer" options={{title:'Developer',tabBarLabel:'Dev',tabBarIcon:({color})=><TabIcon symbol="⌘" color={color}/>}}/>
     <Tabs.Screen name="operations" options={{title:'Operations',tabBarLabel:'Ops',tabBarIcon:({color})=><TabIcon symbol="⚙" color={color}/>}}/>
 
+    <Tabs.Screen name="mail" options={{href:null,title:'Kleenest Mail',headerShown:false}}/>
     <Tabs.Screen name="account" options={{href:null,title:'Profile & Themes'}}/>
     <Tabs.Screen name="search" options={{href:null,title:'Search'}}/>
     <Tabs.Screen name="auth" options={{href:null,title:'Owner Sign In',headerShown:false}}/>
