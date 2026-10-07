@@ -40,7 +40,8 @@ jobs:
       - name: Verify Owner auth gate source
         run: |
           grep -q 'getSession' app/_layout.tsx
-          grep -q 'Redirect href="/auth"' app/_layout.tsx
+          grep -q 'if(!signedIn&&!onAuth)return <Redirect' app/_layout.tsx
+          grep -q "'/auth'" app/_layout.tsx
           grep -q 'Owner Sign In' app/_layout.tsx
           test -s assets/app-icon.png
       - name: Expo health and production bundle preflight
