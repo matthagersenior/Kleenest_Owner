@@ -27,7 +27,7 @@ export default function RootLayout(){
  },[]);
 
  if(!ready)return <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:theme.canvas}}><ActivityIndicator size="large"/></View>;
- if(!signedIn&&!onAuth)return <Redirect href="/auth"/>;
+ if(!signedIn&&!onAuth)return <Redirect href={onMail?{pathname:'/auth',params:{returnTo:'/mail'}}:'/auth'}/>;
 
  return <>
   <StatusBar style={theme.statusBar}/>
