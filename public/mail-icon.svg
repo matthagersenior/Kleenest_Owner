@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Kleenest Mail">
+  <rect width="512" height="512" rx="112" fill="#0d4f3c"/>
+  <path d="M104 154c0-22 18-40 40-40h224c22 0 40 18 40 40v204c0 22-18 40-40 40H144c-22 0-40-18-40-40V154Z" fill="#ffffff"/>
+  <path d="M128 168 256 268 384 168" fill="none" stroke="#0d4f3c" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m145 348 84-79m138 79-84-79" fill="none" stroke="#0d4f3c" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="390" cy="122" r="58" fill="#9fe6bf"/>
+  <path d="m363 122 18 18 36-42" fill="none" stroke="#0d4f3c" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
