@@ -9,6 +9,7 @@ const layout=read('app/_layout.tsx');
 const manifest=JSON.parse(read('public/mail-manifest.json'));
 const worker=read('public/mail-sw.js');
 const directory=read('supabase/functions/owner-email-directory/index.ts');
+const tsconfig=JSON.parse(read('tsconfig.json'));
 
 expect(communications.includes("m.mailbox_type!=='system'"),'Email Center must include authorized personal mailboxes.');
 expect(communications.includes("m.mailbox_type==='personal'&&m.send_enabled"),'Compose should prefer an authorized personal mailbox.');
@@ -22,5 +23,6 @@ expect(worker.includes('not cached'),'Mail service worker must avoid caching sen
 expect(directory.includes('mailbox.mailbox_type==="personal"'),'Mailbox directory must enforce personal mailbox ownership/membership.');
 expect(directory.includes('owner_email_mailbox_members'),'Mailbox directory must honor explicit mailbox membership.');
 expect(!directory.includes('user_metadata'),'Mailbox authorization must not trust user-editable metadata.');
+expect(Array.isArray(tsconfig.exclude)&&tsconfig.exclude.includes('supabase/functions'),'Expo typecheck must exclude Deno Edge Function sources.');
 
 console.log('Kleenest Mail PWA audit passed.');
