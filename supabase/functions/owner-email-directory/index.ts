@@ -90,7 +90,8 @@ Deno.serve(async req=>{
         const member:any=byId.get(String(m.id));
         return {id:m.id,address:m.address,display_name:m.display_name,mailbox_type:m.mailbox_type,active:m.active,
           send_enabled:Boolean(m.send_enabled)&&(platformOwner||m.owner_user_id===userId||Boolean(member?.can_send)),
-          can_modify:platformOwner||m.owner_user_id===userId||["owner","manager","responder"].includes(String(member?.access_role||""))};
+          can_modify:platformOwner||m.owner_user_id===userId||["owner","manager","responder"].includes(String(member?.access_role||"")),
+          can_manage:platformOwner||m.owner_user_id===userId||["owner","manager"].includes(String(member?.access_role||""))};
       });
       if(!visible.length&&!isAdmin)reject("No mailbox is assigned to this account.",403);
       return json({mailboxes:visible,isAdmin});
