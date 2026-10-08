@@ -32,4 +32,11 @@ expect(mailboxUI.includes("run('assign_member'")&&mailboxUI.includes("run('remov
 expect(mailboxUI.includes("run('create_mailbox'")&&mailboxUI.includes("run('update_mailbox'"), 'Mailbox create/update controls are required.');
 expect(inbox.includes('Manage mailboxes & access')&&inbox.includes('Sign out'), 'Email Center needs management navigation and mail-only sign-out.');
 expect(api.includes('listManagedMailboxes')&&api.includes('manageMailDirectory'), 'Client must call authenticated directory endpoint.');
-console.log('Mailbox CRUD and delegated access audit passed.');
+expect(api.includes("action:'get_attachment'")&&api.includes('attachments:input.attachments||[]'), 'Mail client must wire attachment downloads and outgoing attachments.');
+expect(inbox.includes('downloadAttachment(selected.id,m.id')&&inbox.includes('Attach files'), 'Users must be able to download and attach files in the mail UI.');
+expect(inbox.includes('attachNativePhotos'), 'Native owner client must offer photo attachments.');
+expect(inbox.includes('selectedCanModify?<><Text')&&inbox.includes('Read-only access:'), 'Read-only users must not see label mutation controls.');
+expect(inbox.includes("void load(view,mailboxId,next)"), 'Unread filter must use the next state rather than stale state.');
+expect(inbox.includes("pathname==='/mail'?'KLEENEST MAIL'"), 'Installable mail client must use its own title.');
+expect(center.includes('withMailboxSignature(requiredText')&&center.includes('body:withMailboxSignature(replyBody,mailbox)'), 'Saved mailbox signatures must be added to outbound messages.');
+console.log('Mailbox CRUD, delegated access, and mail UI capability audit passed.');
