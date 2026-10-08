@@ -90,6 +90,7 @@ export type OwnerMailThread={
   messages:OwnerMailMessage[];
 };
 
+export type MailUploadAttachment={filename:string;content:string;contentType:string;size:number};
 type GatewayInput=Record<string,unknown>;
 
 async function invokeFunction<T>(functionName:string,body:GatewayInput):Promise<T>{
@@ -152,6 +153,10 @@ export function getOwnerMailThread(threadId:string){
   return invoke<{thread:OwnerMailThread}>({action:'get_thread',threadId});
 }
 
+export function getOwnerMailAttachment(input:{threadId:string;messageId:string;attachmentId:string}){
+  return invoke<{downloadUrl:string;filename:string;expiresAt:string|null}>({action:'get_attachment',...input});
+}
+
 export function replyOwnerMailThread(input:{threadId:string;body:string;replyAll?:boolean}){
   return invoke<{messageId:string;threadId:string}>({
     action:'reply',
@@ -191,7 +196,7 @@ export function saveOwnerMailDraft(input:{draftId?:string|null;mailboxId?:string
   });
 }
 
-export function sendOwnerMail(input:{mailboxId?:string|null;to:string;cc?:string;bcc?:string;subject:string;body:string}){
+export function sendOwnerMail(input:{mailboxId?:string|null;to:string;cc?:string;bcc?:string;subject:string;body:string;attachments?:MailUploadAttachment[]}){
   return invoke<{messageId:string;threadId:string|null}>({
     action:'send',
     mailboxId:input.mailboxId||'',
@@ -200,6 +205,7 @@ export function sendOwnerMail(input:{mailboxId?:string|null;to:string;cc?:string
     bcc:input.bcc?.trim()||'',
     subject:input.subject.trim(),
     body:input.body.trim(),
+    attachments:input.attachments||[],
   });
 }
 
