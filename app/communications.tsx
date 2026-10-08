@@ -183,8 +183,8 @@ export default function Communications(){
   return <ScrollView ref={scrollRef} refreshControl={<RefreshControl refreshing={busy} onRefresh={()=>void load()}/>} contentContainerStyle={{padding:16,gap:14,paddingBottom:80,backgroundColor:theme.canvas}}>
     <OSHero eyebrow={pathname==='/mail'?'KLEENEST MAIL':'KLEENESTOS · COMMUNICATIONS'} title={pathname==='/mail'?'Kleenest Mail':'Kleenest Email Center'} body="Read, reply, and send from the personal and shared @kleenest.us mailboxes assigned to you.">
       <StatusPill label={activeMailbox?.address||'ALL MAILBOXES'} tone={ready?'good':'warning'}/>
-      <StatusPill label={ready?'MAIL LIVE':'SETUP IN PROGRESS'} tone={ready?'good':'warning'}/>
-      {unreadCount?<StatusPill label={`${unreadCount} UNREAD`} tone="warning"/>:null}
+      <StatusPill label={ready?'MAIL CONFIGURED':'SETUP IN PROGRESS'} tone={ready?'good':'warning'}/>
+      {(status?.unread_total??unreadCount)>0?<StatusPill label={`${status?.unread_total??unreadCount} UNREAD`} tone="warning"/>:null}
     </OSHero>
 
     {notice?<View style={{...card,borderColor:theme.warning}}><Text style={{fontWeight:'800',color:theme.warning}}>{notice}</Text></View>:null}
@@ -193,9 +193,9 @@ export default function Communications(){
     {serviceDetails?<View style={{...card,gap:8}}>
       <SectionHeader title="Email service" body="No Gmail connection is required. Resend handles transport while KleenestOS and the installable Kleenest Mail client use the same authenticated mailbox backend."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-        <StatusPill label={status?.providerConfigured?'RESEND CONNECTED':'PROVIDER PENDING'} tone={status?.providerConfigured?'good':'warning'}/>
+        <StatusPill label={status?.providerConfigured?'RESEND CONFIGURED':'PROVIDER PENDING'} tone={status?.providerConfigured?'good':'warning'}/>
         <StatusPill label={status?.domainStatus==='verified'?'DOMAIN VERIFIED':'DOMAIN DNS PENDING'} tone={status?.domainStatus==='verified'?'good':'warning'}/>
-        <StatusPill label={status?.webhookEnabled?'INBOUND LIVE':'INBOUND PENDING'} tone={status?.webhookEnabled?'good':'warning'}/>
+        <StatusPill label={status?.webhookEnabled?'INBOUND CONFIGURED':'INBOUND PENDING'} tone={status?.webhookEnabled?'good':'warning'}/>
       </View>
       <Text style={{fontSize:12,color:theme.muted}}>Personal mailboxes are private by default; shared role addresses are available only to authorized Kleenest administrators and members.</Text>
     </View>:null}
@@ -218,7 +218,7 @@ export default function Communications(){
         <Pressable disabled={busy} onPress={()=>compose?clearCompose():startCompose()} style={{padding:11,borderRadius:12,backgroundColor:theme.accent,opacity:busy?0.5:1}}><Text style={{fontWeight:'900',color:theme.accentText}}>{compose?'Close':'Compose'}</Text></Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:3}}>
-        {(Object.keys(views) as ViewKey[]).map(k=><Pressable key={k} onPress={()=>void load(k)} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:k===view?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:k===view?theme.accentText:theme.accent}} >{views[k].label}</Text></Pressable>)}
+        {(Object.keys(views) as ViewKey[]).map(k=><Pressable key={k} onPress={()=>{setSelected(null);setCompose(false);void load(k)}} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:k===view?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:k===view?theme.accentText:theme.accent}} >{views[k].label}</Text></Pressable>)}
       </ScrollView>
     </View>
 
