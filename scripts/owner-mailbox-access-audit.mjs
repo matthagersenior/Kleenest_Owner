@@ -20,6 +20,10 @@ expect(!center.includes('(admin&&!personal)'), 'Ordinary admins must not bypass 
 expect(center.includes('const canRead=platformOwner||owns||Boolean(member);'), 'Reading a mailbox must require owner or membership.');
 expect(center.includes('const canSend=platformOwner||owns||Boolean(member?.can_send);'), 'Sending must require owner or explicit send permission.');
 expect(!directory.includes('isAdmin&&m.mailbox_type'), 'Directory must not grant all shared mailboxes to admins.');
+expect(center.includes('if(requireModify&&!platformOwner&&!owns'), 'Read-only viewers must not change inbox state.');
+expect(center.includes('String(current.data.mailbox_id),false,true)'), 'Message mutation paths must require edit rights.');
+expect(directory.includes('can_modify:platformOwner'), 'Directory must expose mailbox modification rights.');
+expect(inbox.includes('selectedCanModify')&&inbox.includes('selectedCanSend'), 'Viewer controls must be read-only in the UI.');
 expect(auth.includes("if(returnToMail)")&&auth.includes('auth.signInWithPassword'), 'Mail-only users need dedicated sign-in.');
 expect(auth.includes('authorizeDestination()')&&auth.includes('listOwnerMailboxes()'), 'Mail sign-in must enforce an assigned mailbox.');
 expect(layout.includes('ownerAllowed===false')&&layout.includes('<Redirect href="/mail"/>'), 'Mail-only users must not enter Owner routes.');

@@ -48,6 +48,9 @@ export default function Communications(){
   const unreadCount=useMemo(()=>threads.filter(t=>t.unread).length,[threads]);
   const activeMailbox=useMemo(()=>mailboxes.find(m=>m.id===mailboxId)||null,[mailboxes,mailboxId]);
   const composeMailbox=useMemo(()=>mailboxes.find(m=>m.id===composeMailboxId)||null,[mailboxes,composeMailboxId]);
+  const selectedCanModify=Boolean(mailboxes.find(m=>m.id===selected?.mailboxId)?.can_modify);
+  const selectedCanManage=Boolean(mailboxes.find(m=>m.id===selected?.mailboxId)?.can_manage);
+  const selectedCanSend=Boolean(mailboxes.find(m=>m.id===selected?.mailboxId)?.send_enabled);
   const ready=Boolean(status?.connected);
 
   async function load(nextView=view,nextMailboxId=mailboxId){
@@ -69,7 +72,7 @@ export default function Communications(){
     setBusy(true);
     try{
       const r=await getOwnerMailThread(t.id); setSelected(r.thread); setReply(''); setForward(false);
-      if(r.thread.unread){await setOwnerMailThreadRead(t.id,true); setThreads(x=>x.map(v=>v.id===t.id?{...v,unread:false}:v))}
+      if(r.thread.unread&&mailboxes.find(m=>m.id===r.thread.mailboxId)?.can_modify){await setOwnerMailThreadRead(t.id,true); setThreads(x=>x.map(v=>v.id===t.id?{...v,unread:false}:v))}
     }catch(e:any){setNotice(String(e?.message||'Thread could not be opened.'))}
     finally{setBusy(false)}
   }
@@ -202,16 +205,16 @@ export default function Communications(){
       <Text style={{fontSize:18,fontWeight:'900',color:theme.ink}}>{selected.subject}</Text>
       <StatusPill label={selected.mailboxAddress||'MAILBOX'} tone="good"/>
       <Text style={{fontSize:12,color:theme.muted}}>{selected.participants.join(' · ')}</Text>
-      <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>
-        {selected.folder==='drafts'?<Pressable onPress={editDraft} style={{padding:8,borderRadius:999,backgroundColor:theme.accent}}><Text style={{fontWeight:'900',color:theme.accentText}}>Edit draft</Text></Pressable>:null}
+      {selectedCanModify?<View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>
+        {selectedCanSend&&selected.folder==='drafts'?<Pressable onPress={editDraft} style={{padding:8,borderRadius:999,backgroundColor:theme.accent}}><Text style={{fontWeight:'900',color:theme.accentText}}>Edit draft</Text></Pressable>:null}
         <Pressable onPress={()=>void mutate(()=>setOwnerMailThreadStarred(selected.id,!selected.starred),selected.starred?'Star removed.':'Conversation starred.')} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>{selected.starred?'Unstar':'Star'}</Text></Pressable>
         <Pressable onPress={()=>void mutate(()=>setOwnerMailThreadRead(selected.id,selected.unread),selected.unread?'Marked read.':'Marked unread.')} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>{selected.unread?'Mark read':'Mark unread'}</Text></Pressable>
         <Pressable onPress={()=>void mutate(()=>setOwnerMailThreadInbox(selected.id,true),'Moved to inbox.',selected.folder!=='inbox')} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Move to inbox</Text></Pressable>
         {selected.folder==='inbox'?<Pressable onPress={()=>void mutate(()=>archiveOwnerMailThread(selected.id),'Conversation archived.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Archive</Text></Pressable>:null}
         {!['drafts','spam','trash'].includes(String(selected.folder||''))&&selected.messages.some(m=>!m.sent)?<Pressable onPress={()=>void mutate(()=>spamOwnerMailThread(selected.id),'Conversation moved to Spam.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Spam</Text></Pressable>:null}
-        {selected.messages.some(m=>!m.sent)?<Pressable onPress={()=>void mutate(()=>blockOwnerMailThreadSender(selected.id),'Sender blocked and conversation moved to Spam.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Block sender</Text></Pressable>:null}
+        {selectedCanManage&&selected.messages.some(m=>!m.sent)?<Pressable onPress={()=>void mutate(()=>blockOwnerMailThreadSender(selected.id),'Sender blocked and conversation moved to Spam.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Block sender</Text></Pressable>:null}
         {selected.folder!=='trash'?<Pressable onPress={()=>void mutate(()=>trashOwnerMailThread(selected.id),'Conversation moved to Trash.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Trash</Text></Pressable>:null}
-      </View>
+      </View>:null}
 
       {selected.messages.map(m=><View key={m.id} style={{borderTopWidth:1,borderColor:theme.line,paddingTop:10,gap:6}}>
         <Text style={{fontWeight:'900',color:theme.ink}}>{m.sent?'Kleenest':m.from}</Text>
@@ -220,7 +223,7 @@ export default function Communications(){
         {m.attachments.length?<View><Text style={{fontWeight:'900',fontSize:12,color:theme.ink}}>Attachments</Text>{m.attachments.map((a,i)=><Text key={i} style={{fontSize:12,color:theme.muted}}>{a.filename} · {a.mimeType}</Text>)}</View>:null}
       </View>)}
 
-      {selected.folder!=='drafts'?<>
+      {selected.folder!=='drafts'&&selectedCanSend?<>
       <Text style={{fontWeight:'900',color:theme.ink}}>Reply</Text>
       <TextInput value={reply} onChangeText={setReply} placeholder="Write a reply…" placeholderTextColor={theme.muted} multiline style={{minHeight:100,textAlignVertical:'top',borderWidth:1,borderColor:theme.line,borderRadius:12,padding:11,color:theme.ink,backgroundColor:theme.surfaceRaised}}/>
       <View style={{flexDirection:'row',gap:8,flexWrap:'wrap'}}>

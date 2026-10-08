@@ -21,6 +21,8 @@ export type OwnerMailbox={
   display_name:string;
   mailbox_type:'personal'|'shared'|'system'|string;
   send_enabled:boolean;
+  can_modify?:boolean;
+  can_manage?:boolean;
   active:boolean;
 };
 
