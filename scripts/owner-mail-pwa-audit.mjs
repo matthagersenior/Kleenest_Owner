@@ -22,7 +22,7 @@ expect(layout.includes("name=\"mail\""),'Kleenest Mail route must be registered 
 expect(manifest.id==='/mail'&&manifest.start_url==='/mail','Kleenest Mail manifest must launch the /mail route.');
 expect(manifest.display==='standalone','Kleenest Mail must install in standalone display mode.');
 expect(worker.includes('not cached'),'Mail service worker must avoid caching sensitive mailbox content.');
-expect(directory.includes('mailbox.mailbox_type==="personal"'),'Mailbox directory must enforce personal mailbox ownership/membership.');
+expect(directory.includes('m.mailbox_type==="shared"')&&directory.includes('m.owner_user_id===userId'),'Mailbox directory must enforce personal mailbox ownership/membership.');
 expect(directory.includes('owner_email_mailbox_members'),'Mailbox directory must honor explicit mailbox membership.');
 expect(!directory.includes('user_metadata'),'Mailbox authorization must not trust user-editable metadata.');
 expect(Array.isArray(tsconfig.exclude)&&tsconfig.exclude.includes('supabase/functions'),'Expo typecheck must exclude Deno Edge Function sources.');
