@@ -4,6 +4,7 @@ import { useLocalSearchParams,useRouter } from 'expo-router';
 import { Platform,Pressable,ScrollView,Text,TextInput,View } from 'react-native';
 import { getSupabaseClient } from '@/lib/supabase';
 import { signInOwner } from '@/services/controlPlane';
+import { listOwnerMailboxes } from '@/services/communications';
 import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 import { useOwnerTheme } from '@/services/theme';
 
@@ -35,6 +36,12 @@ export default function OwnerSignIn(){
   const params=useLocalSearchParams<{returnTo?:string|string[]}>();
   const requestedReturnTo=Array.isArray(params.returnTo)?params.returnTo[0]:params.returnTo;
   const returnToMail=requestedReturnTo==='/mail';
+  async function authorizeDestination(){
+    if(!returnToMail)return authorizeOwnerSession();
+    const {mailboxes}=await listOwnerMailboxes();
+    if(!mailboxes?.length)throw new Error('Your Kleenest account has no assigned mailbox. Ask the platform owner to grant access.');
+    return null;
+  }
   const postAuthPath=returnToMail?'/mail' as const:'/' as const;
   const ownerRedirect=Platform.OS==='web'
     ? `${ownerWebOrigin}/auth${returnToMail?'?returnTo=%2Fmail':''}`
@@ -59,7 +66,7 @@ export default function OwnerSignIn(){
     try{
       const {error:exchangeError}=await supabase.auth.exchangeCodeForSession(code);
       if(exchangeError)throw exchangeError;
-      await authorizeOwnerSession();
+      await authorizeDestination();
       router.replace(postAuthPath);
       return true;
     }catch(c){
@@ -72,8 +79,14 @@ export default function OwnerSignIn(){
 
   async function signIn(){
     setBusy(true);setError(null);setNotice(null);
-    try{await signInOwner(email,password);await authorizeOwnerSession();router.replace(postAuthPath);}
-    catch(c){setError(messageOf(c));}
+    try{
+      if(returnToMail){
+        const {error}=await getSupabaseClient().auth.signInWithPassword({email:email.trim(),password});
+        if(error)throw error;
+      }else await signInOwner(email,password);
+      await authorizeDestination();router.replace(postAuthPath);
+    }
+    catch(c){await getSupabaseClient().auth.signOut({scope:'local'});setError(messageOf(c));}
     finally{setBusy(false);}
   }
 
@@ -88,10 +101,10 @@ export default function OwnerSignIn(){
       const {data,error:signupError}=await client.auth.signUp({email:cleanEmail,password,options:{emailRedirectTo:ownerRedirect}});
       if(signupError)throw signupError;
       if(data.session){
-        try{await authorizeOwnerSession();router.replace(postAuthPath);return;}
+        try{await authorizeDestination();router.replace(postAuthPath);return;}
         catch{await client.auth.signOut({scope:'local'});}
       }
-      setNotice('Account created. Confirm your email if prompted. KleenestOS owner/admin authority is granted separately, so creating an account does not unlock platform controls by itself.');
+      setNotice(returnToMail?'Account created. Confirm your email if requested; a mailbox administrator must assign an address before you can sign in to mail.':'Account created. Confirm your email if prompted. KleenestOS owner/admin authority is granted separately.');
       setMode('signin');setPassword('');setConfirmPassword('');
     }catch(c){setError(messageOf(c));}
     finally{setBusy(false);}
@@ -116,23 +129,23 @@ export default function OwnerSignIn(){
   return <ScrollView style={{backgroundColor:theme.canvas}} contentContainerStyle={{flexGrow:1,justifyContent:'center',padding:24,backgroundColor:theme.canvas}} keyboardShouldPersistTaps="handled">
     <View style={{gap:14}}>
       <View style={{backgroundColor:theme.accent,borderRadius:20,padding:18,gap:6,borderWidth:1,borderColor:theme.accent}}>
-        <Text style={{color:theme.accentText,fontSize:11,fontWeight:'900',letterSpacing:1.8,opacity:.82}}>KLEENESTOS OWNER CONTROL CENTER</Text>
-        <Text style={{color:theme.accentText,fontSize:30,fontWeight:'900'}}>KleenestOS</Text>
-        <Text style={{color:theme.accentText,lineHeight:20,opacity:.9}}>Private platform operating system</Text>
+        <Text style={{color:theme.accentText,fontSize:11,fontWeight:'900',letterSpacing:1.8,opacity:.82}}>KLEENEST · SECURE ACCOUNT</Text>
+        <Text style={{color:theme.accentText,fontSize:30,fontWeight:'900'}}>{returnToMail?'Kleenest Mail':'KleenestOS'}</Text>
+        <Text style={{color:theme.accentText,lineHeight:20,opacity:.9}}>{returnToMail?'Sign in to your assigned Kleenest mailbox.':'Private platform operating system'}</Text>
       </View>
       <View style={{flexDirection:'row',gap:8}}>
         <ModeButton label="Sign in" active={!creating} onPress={()=>{setMode('signin');setError(null);setNotice(null);}}/>
         <ModeButton label="Create account" active={creating} onPress={()=>{setMode('signup');setError(null);setNotice(null);}}/>
       </View>
-      <Text style={{fontSize:24,fontWeight:'800',color:theme.ink}}>{creating?'Create owner account':'Owner sign in'}</Text>
-      <Text style={{color:theme.muted,lineHeight:21}}>{creating?'Create the Supabase identity used for KleenestOS. Account creation never grants platform authority automatically; owner/admin access remains controlled by the backend.':'KleenestOS verifies your server authorization tier after authentication. Platform owners receive mutation controls; admins receive only the authority allowed by the backend.'}</Text>
+      <Text style={{fontSize:24,fontWeight:'800',color:theme.ink}}>{creating?'Create account':returnToMail?'Kleenest Mail sign in':'Owner sign in'}</Text>
+      <Text style={{color:theme.muted,lineHeight:21}}>{returnToMail?'Use your existing Kleenest login. Only mailboxes specifically assigned to your account will be available.':creating?'Create the Supabase identity used for KleenestOS. Account creation never grants platform authority automatically.':'KleenestOS verifies your server authorization tier after authentication.'}</Text>
       {error?<Text accessibilityLiveRegion="polite" style={{color:theme.danger}}>{error}</Text>:null}
       {notice?<View style={{backgroundColor:theme.success+'18',borderRadius:14,padding:12,borderWidth:1,borderColor:theme.success+'55'}}><Text accessibilityLiveRegion="polite" style={{color:theme.success,lineHeight:20}}>{notice}</Text></View>:null}
       <Pressable disabled={busy} onPress={google} style={{backgroundColor:theme.surface,borderWidth:1,borderColor:theme.line,padding:14,borderRadius:14}}><Text style={{fontWeight:'900',textAlign:'center',color:theme.ink}}>Continue with Google</Text></Pressable>
-      <View style={{gap:6}}><Text style={labelStyle}>Owner email</Text><TextInput accessibilityLabel="Owner email" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" placeholder="owner@example.com" placeholderTextColor={theme.muted} style={fieldStyle}/></View>
-      <View style={{gap:6}}><Text style={labelStyle}>Owner password</Text><View style={{flexDirection:'row',alignItems:'center',borderWidth:1,borderColor:theme.line,borderRadius:14,backgroundColor:theme.surfaceRaised,overflow:'hidden'}}><TextInput accessibilityLabel="Owner password" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" autoCorrect={false} autoComplete={creating?'new-password':'current-password'} textContentType={creating?'newPassword':'password'} placeholder={creating?'Create a password':'Enter owner password'} placeholderTextColor={theme.muted} style={{flex:1,paddingHorizontal:14,paddingVertical:13,color:theme.ink}}/><Pressable accessibilityRole="button" accessibilityLabel={showPassword?'Hide password':'Show password'} onPress={()=>setShowPassword(value=>!value)} style={{alignSelf:'stretch',justifyContent:'center',paddingHorizontal:16,borderLeftWidth:1,borderLeftColor:theme.line,backgroundColor:theme.surface}}><Text style={{fontSize:12,fontWeight:'900',color:theme.accent}}>{showPassword?'Hide':'Show'}</Text></Pressable></View></View>
+      <View style={{gap:6}}><Text style={labelStyle}>Account email</Text><TextInput accessibilityLabel="Owner email" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" placeholder="owner@example.com" placeholderTextColor={theme.muted} style={fieldStyle}/></View>
+      <View style={{gap:6}}><Text style={labelStyle}>Password</Text><View style={{flexDirection:'row',alignItems:'center',borderWidth:1,borderColor:theme.line,borderRadius:14,backgroundColor:theme.surfaceRaised,overflow:'hidden'}}><TextInput accessibilityLabel="Owner password" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" autoCorrect={false} autoComplete={creating?'new-password':'current-password'} textContentType={creating?'newPassword':'password'} placeholder={creating?'Create a password':'Enter owner password'} placeholderTextColor={theme.muted} style={{flex:1,paddingHorizontal:14,paddingVertical:13,color:theme.ink}}/><Pressable accessibilityRole="button" accessibilityLabel={showPassword?'Hide password':'Show password'} onPress={()=>setShowPassword(value=>!value)} style={{alignSelf:'stretch',justifyContent:'center',paddingHorizontal:16,borderLeftWidth:1,borderLeftColor:theme.line,backgroundColor:theme.surface}}><Text style={{fontSize:12,fontWeight:'900',color:theme.accent}}>{showPassword?'Hide':'Show'}</Text></Pressable></View></View>
       {creating?<View style={{gap:6}}><Text style={labelStyle}>Confirm password</Text><TextInput accessibilityLabel="Confirm owner password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPassword} autoCapitalize="none" autoCorrect={false} autoComplete="new-password" textContentType="newPassword" placeholder="Re-enter password" placeholderTextColor={theme.muted} style={fieldStyle}/></View>:null}
-      <Pressable disabled={submitDisabled} onPress={creating?signUp:signIn} style={{backgroundColor:theme.accent,padding:15,borderRadius:14,opacity:submitDisabled?0.5:1}}><Text style={{color:theme.accentText,fontWeight:'900',textAlign:'center'}}>{busy?'Working…':creating?'Create owner account':'Sign in to KleenestOS'}</Text></Pressable>
+      <Pressable disabled={submitDisabled} onPress={creating?signUp:signIn} style={{backgroundColor:theme.accent,padding:15,borderRadius:14,opacity:submitDisabled?0.5:1}}><Text style={{color:theme.accentText,fontWeight:'900',textAlign:'center'}}>{busy?'Working…':creating?'Create account':returnToMail?'Open Kleenest Mail':'Sign in to KleenestOS'}</Text></Pressable>
     </View>
   </ScrollView>
 }
