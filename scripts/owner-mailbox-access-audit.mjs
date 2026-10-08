@@ -2,6 +2,7 @@ import fs from 'node:fs';
 function read(file){return fs.readFileSync(file,'utf8')}
 function expect(ok,message){if(!ok)throw new Error(message)}
 const directory=read('supabase/functions/owner-email-directory/index.ts');
+const center=read('supabase/functions/owner-email-center/index.ts');
 const auth=read('app/auth.tsx');
 const layout=read('app/_layout.tsx');
 const mailboxUI=read('app/mailboxes.tsx');
@@ -15,6 +16,10 @@ expect(directory.includes('getUserById(target)'), 'Mailbox assignment must valid
 expect(directory.includes('owner_email_mailbox_members')&&directory.includes('m.owner_user_id===userId'), 'Mailbox listing must scope users to owned or assigned mailboxes.');
 expect(!directory.includes('user_metadata'), 'Never authorize from editable metadata.');
 expect(directory.includes('await audit(userId,action'), 'Mailbox changes must be audited.');
+expect(!center.includes('(admin&&!personal)'), 'Ordinary admins must not bypass mailbox assignment.');
+expect(center.includes('const canRead=platformOwner||owns||Boolean(member);'), 'Reading a mailbox must require owner or membership.');
+expect(center.includes('const canSend=platformOwner||owns||Boolean(member?.can_send);'), 'Sending must require owner or explicit send permission.');
+expect(!directory.includes('isAdmin&&m.mailbox_type'), 'Directory must not grant all shared mailboxes to admins.');
 expect(auth.includes("if(returnToMail)")&&auth.includes('auth.signInWithPassword'), 'Mail-only users need dedicated sign-in.');
 expect(auth.includes('authorizeDestination()')&&auth.includes('listOwnerMailboxes()'), 'Mail sign-in must enforce an assigned mailbox.');
 expect(layout.includes('ownerAllowed===false')&&layout.includes('<Redirect href="/mail"/>'), 'Mail-only users must not enter Owner routes.');
