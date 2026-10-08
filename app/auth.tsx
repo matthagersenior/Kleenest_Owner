@@ -43,8 +43,9 @@ export default function OwnerSignIn(){
     return null;
   }
   const postAuthPath=returnToMail?'/mail' as const:'/' as const;
+  const mailWebOrigin=Platform.OS==='web'&&typeof window!=='undefined'?window.location.origin:ownerWebOrigin;
   const ownerRedirect=Platform.OS==='web'
-    ? `${ownerWebOrigin}/auth${returnToMail?'?returnTo=%2Fmail':''}`
+    ? `${returnToMail?mailWebOrigin:ownerWebOrigin}/auth${returnToMail?'?returnTo=%2Fmail':''}`
     : ownerNativeRedirect;
   const theme=useOwnerTheme();
   const[mode,setMode]=useState<AuthMode>('signin');
