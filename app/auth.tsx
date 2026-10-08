@@ -129,7 +129,7 @@ export default function OwnerSignIn(){
   return <ScrollView style={{backgroundColor:theme.canvas}} contentContainerStyle={{flexGrow:1,justifyContent:'center',padding:24,backgroundColor:theme.canvas}} keyboardShouldPersistTaps="handled">
     <View style={{gap:14}}>
       <View style={{backgroundColor:theme.accent,borderRadius:20,padding:18,gap:6,borderWidth:1,borderColor:theme.accent}}>
-        <Text style={{color:theme.accentText,fontSize:11,fontWeight:'900',letterSpacing:1.8,opacity:.82}}>KLEENEST · SECURE ACCOUNT</Text>
+        <Text style={{color:theme.accentText,fontSize:11,fontWeight:'900',letterSpacing:1.8,opacity:.82}}>{returnToMail?'KLEENEST MAIL CLIENT':'KLEENESTOS OWNER CONTROL CENTER'}</Text>
         <Text style={{color:theme.accentText,fontSize:30,fontWeight:'900'}}>{returnToMail?'Kleenest Mail':'KleenestOS'}</Text>
         <Text style={{color:theme.accentText,lineHeight:20,opacity:.9}}>{returnToMail?'Sign in to your assigned Kleenest mailbox.':'Private platform operating system'}</Text>
       </View>
