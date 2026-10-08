@@ -49,6 +49,7 @@ export default function Communications(){
   const activeMailbox=useMemo(()=>mailboxes.find(m=>m.id===mailboxId)||null,[mailboxes,mailboxId]);
   const composeMailbox=useMemo(()=>mailboxes.find(m=>m.id===composeMailboxId)||null,[mailboxes,composeMailboxId]);
   const selectedCanModify=Boolean(mailboxes.find(m=>m.id===selected?.mailboxId)?.can_modify);
+  const selectedCanManage=Boolean(mailboxes.find(m=>m.id===selected?.mailboxId)?.can_manage);
   const selectedCanSend=Boolean(mailboxes.find(m=>m.id===selected?.mailboxId)?.send_enabled);
   const ready=Boolean(status?.connected);
 
@@ -211,7 +212,7 @@ export default function Communications(){
         <Pressable onPress={()=>void mutate(()=>setOwnerMailThreadInbox(selected.id,true),'Moved to inbox.',selected.folder!=='inbox')} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Move to inbox</Text></Pressable>
         {selected.folder==='inbox'?<Pressable onPress={()=>void mutate(()=>archiveOwnerMailThread(selected.id),'Conversation archived.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Archive</Text></Pressable>:null}
         {!['drafts','spam','trash'].includes(String(selected.folder||''))&&selected.messages.some(m=>!m.sent)?<Pressable onPress={()=>void mutate(()=>spamOwnerMailThread(selected.id),'Conversation moved to Spam.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Spam</Text></Pressable>:null}
-        {selected.messages.some(m=>!m.sent)?<Pressable onPress={()=>void mutate(()=>blockOwnerMailThreadSender(selected.id),'Sender blocked and conversation moved to Spam.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Block sender</Text></Pressable>:null}
+        {selectedCanManage&&selected.messages.some(m=>!m.sent)?<Pressable onPress={()=>void mutate(()=>blockOwnerMailThreadSender(selected.id),'Sender blocked and conversation moved to Spam.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Block sender</Text></Pressable>:null}
         {selected.folder!=='trash'?<Pressable onPress={()=>void mutate(()=>trashOwnerMailThread(selected.id),'Conversation moved to Trash.',true)} style={{padding:8,borderRadius:999,backgroundColor:theme.accentSoft}}><Text style={{fontWeight:'900',color:theme.accent}}>Trash</Text></Pressable>:null}
       </View>:null}
 
