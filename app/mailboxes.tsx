@@ -69,7 +69,7 @@ export default function MailboxManagement(){
   );
   const actionButton=(label:string,onPress:()=>void,disabled=false,danger=false)=>(
     <Pressable accessibilityRole="button" disabled={disabled||busy} onPress={onPress}
-      style={{paddingHorizontal:13,paddingVertical:11,borderRadius:12,backgroundColor:danger?theme.danger:theme.accent,opacity:disabled||busy?.45:1}}>
+      style={{paddingHorizontal:13,paddingVertical:11,borderRadius:12,backgroundColor:danger?theme.danger:theme.accent,opacity:disabled||busy?0.45:1}}>
       <Text style={{fontWeight:'900',color:theme.accentText}}>{label}</Text>
     </Pressable>
   );
