@@ -21,6 +21,9 @@ export type OwnerMailbox={
   display_name:string;
   mailbox_type:'personal'|'shared'|'system'|string;
   send_enabled:boolean;
+  signature_text?:string;
+  forwarding_enabled?:boolean;
+  auto_reply_enabled?:boolean;
   can_modify?:boolean;
   can_manage?:boolean;
   active:boolean;
