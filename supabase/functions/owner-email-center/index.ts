@@ -91,6 +91,11 @@ function parseMailbox(value:string){
   const name=bracket?value.slice(0,value.indexOf('<')).trim().replace(/^"|"$/g,''):'';
   return{name,address};
 }
+function withMailboxSignature(message:string,mailbox:{signature_text?:string|null}){
+  const signature=String(mailbox.signature_text||'').trim();
+  if(!signature||message.trimEnd().endsWith(signature))return message;
+  return message.trimEnd()+'\n\n'+signature;
+}
 function normalizeSubject(value:string){
   return value.toLowerCase().replace(/^\s*((re|fw|fwd):\s*)+/i,'').replace(/\s+/g,' ').trim();
 }
@@ -520,7 +525,7 @@ Deno.serve(async(req:Request)=>{
       if(!to.length)throw new Error('At least one valid recipient is required.');
       if(!mailbox.send_enabled)throw Object.assign(new Error('Sending is disabled for this mailbox.'),{status:403});
       const subject=requiredText(body?.subject,'subject',500);
-      const text=requiredText(body?.body,'body',50000);
+      const text=withMailboxSignature(requiredText(body?.body,'body',50000),mailbox);
       const attachments=emailAttachments(body?.attachments);
       const created=await admin.from('owner_email_center_threads').insert({
         owner_user_id:storageOwnerUserId,mailbox_id:mailbox.id,recipient_address:mailbox.address,
@@ -582,7 +587,7 @@ Deno.serve(async(req:Request)=>{
       if(refs.length)headers.References=[...new Set(refs)].join(' ');
       await admin.from('owner_email_center_threads').update({folder:'inbox',unread:false,updated_at:new Date().toISOString()}).eq('id',threadId);
       const from=String(mailbox.display_name||'Kleenest')+' <'+String(mailbox.address)+'>';
-      return json(await sendAndStore({ownerUserId:storageOwnerUserId,threadId,from,to:[target],cc,subject,body:replyBody,headers,auditAction:replyAll?'reply_all':'reply'}));
+      return json(await sendAndStore({ownerUserId:storageOwnerUserId,threadId,from,to:[target],cc,subject,body:withMailboxSignature(replyBody,mailbox),headers,auditAction:replyAll?'reply_all':'reply'}));
     }
 
     if(action==='forward'){
@@ -601,7 +606,7 @@ Deno.serve(async(req:Request)=>{
       const subject=/^fwd:/i.test(thread.data.subject)?thread.data.subject:'Fwd: '+thread.data.subject;
       const forwarded=[note,note?'\n':'','---------- Forwarded message ----------','From: '+last.data.from_address,'Subject: '+last.data.subject,'',last.data.text_body||''].join('\n');
       const from=String(mailbox.display_name||'Kleenest')+' <'+String(mailbox.address)+'>';
-      return json(await sendAndStore({ownerUserId:storageOwnerUserId,threadId,from,to,subject,body:forwarded,auditAction:'forward'}));
+      return json(await sendAndStore({ownerUserId:storageOwnerUserId,threadId,from,to,subject,body:withMailboxSignature(forwarded,mailbox),auditAction:'forward'}));
     }
 
     if(action==='block_sender'){
