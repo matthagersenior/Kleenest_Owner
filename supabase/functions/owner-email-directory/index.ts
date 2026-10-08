@@ -77,7 +77,7 @@ Deno.serve(async req=>{
     const db=admin();
     if(action==="list_mailboxes"){
       const [mailboxes,members]=await Promise.all([
-        db.from("owner_email_mailboxes").select("id,address,display_name,mailbox_type,send_enabled,active,owner_user_id").eq("active",true).neq("mailbox_type","system").order("address"),
+        db.from("owner_email_mailboxes").select("id,address,display_name,mailbox_type,send_enabled,active,owner_user_id,signature_text,forwarding_enabled,auto_reply_enabled").eq("active",true).neq("mailbox_type","system").order("address"),
         db.from("owner_email_mailbox_members").select("mailbox_id,access_role,can_send").eq("user_id",userId),
       ]);
       if(mailboxes.error)throw mailboxes.error;if(members.error)throw members.error;
@@ -89,6 +89,7 @@ Deno.serve(async req=>{
       }).map((m:any)=>{
         const member:any=byId.get(String(m.id));
         return {id:m.id,address:m.address,display_name:m.display_name,mailbox_type:m.mailbox_type,active:m.active,
+          signature_text:m.signature_text||'',forwarding_enabled:Boolean(m.forwarding_enabled),auto_reply_enabled:Boolean(m.auto_reply_enabled),
           send_enabled:Boolean(m.send_enabled)&&(platformOwner||m.owner_user_id===userId||Boolean(member?.can_send)),
           can_modify:platformOwner||m.owner_user_id===userId||["owner","manager","responder"].includes(String(member?.access_role||"")),
           can_manage:platformOwner||m.owner_user_id===userId||["owner","manager"].includes(String(member?.access_role||""))};

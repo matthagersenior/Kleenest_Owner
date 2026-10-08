@@ -12,7 +12,7 @@ assert.match(home,/href="\/communications"[\s\S]{0,700}Kleenest Email Center/,'O
 assert.match(home,/Email Alert Settings/,'Notification policy must remain separate from the Email Center');
 
 for(const token of [
-  'title="Kleenest Email Center"',
+  "pathname==='/mail'?'Kleenest Mail':'Kleenest Email Center'",
   'No Gmail connection is required',
   'listOwnerMailThreads',
   'replyOwnerMailThread',
