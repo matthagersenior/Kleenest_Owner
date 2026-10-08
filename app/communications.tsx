@@ -1,4 +1,7 @@
 import { useEffect,useMemo,useState } from 'react';
+import { useRouter,usePathname } from 'expo-router';
+import { getSupabaseClient } from '@/lib/supabase';
+import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 import { Pressable,RefreshControl,ScrollView,Text,TextInput,View } from 'react-native';
 import { OSHero,SectionHeader,StatusPill,useOSCardStyle } from '@/components/KleenestOS';
 import { useOwnerTheme } from '@/services/theme';
@@ -28,6 +31,8 @@ const date=(v:DateValue)=>{
 
 export default function Communications(){
   const theme=useOwnerTheme(); const card=useOSCardStyle();
+  const router=useRouter(),pathname=usePathname();
+  const[canManage,setCanManage]=useState(false);
   const[status,setStatus]=useState<OwnerMailConnectionStatus|null>(null);
   const[mailboxes,setMailboxes]=useState<OwnerMailbox[]>([]);
   const[mailboxId,setMailboxId]=useState('');
@@ -58,7 +63,7 @@ export default function Communications(){
     }catch(e:any){setNotice(String(e?.message||'Email Center could not be loaded.'))}
     finally{setBusy(false)}
   }
-  useEffect(()=>{void load()},[]);
+  useEffect(()=>{void load();getOwnerAuthorization().then(a=>setCanManage(a.is_platform_owner)).catch(()=>setCanManage(false))},[]);
 
   async function open(t:OwnerMailThreadSummary){
     setBusy(true);
@@ -140,6 +145,10 @@ export default function Communications(){
     </View>
 
     <View style={{...card,gap:10}}>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:9}}>
+        {canManage?<Pressable onPress={()=>router.push('/mailboxes')} style={{backgroundColor:theme.accent,padding:11,borderRadius:11}}><Text style={{color:theme.accentText,fontWeight:'900'}}>Manage mailboxes & access</Text></Pressable>:null}
+        <Pressable onPress={()=>void getSupabaseClient().auth.signOut({scope:'local'}).then(()=>router.replace({pathname:'/auth',params:{returnTo:pathname==='/mail'?'/mail':'/'}})).catch(e=>setNotice(String(e?.message||e)))} style={{backgroundColor:theme.accentSoft,padding:11,borderRadius:11}}><Text style={{color:theme.accent,fontWeight:'900'}}>Sign out</Text></Pressable>
+      </View>
       <SectionHeader title="Mailboxes" body="Switch between your private mailbox and authorized role addresses. Compose and replies stay attached to the mailbox that owns the conversation."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
         <Pressable onPress={()=>{setMailboxId('');setSelected(null);void load(view,'')}} style={{paddingHorizontal:12,paddingVertical:9,borderRadius:999,backgroundColor:mailboxId===''?theme.accent:theme.accentSoft}}><Text style={{fontWeight:'900',color:mailboxId===''?theme.accentText:theme.accent}}>All</Text></Pressable>

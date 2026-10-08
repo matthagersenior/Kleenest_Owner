@@ -225,3 +225,18 @@ export function spamOwnerMailThread(threadId:string){
 export function blockOwnerMailThreadSender(threadId:string){
   return invoke<{ok:true;sender:string}>({action:'block_sender',threadId});
 }
+
+
+export type MailboxMember={mailbox_id:string;user_id:string;email:string;access_role:'owner'|'manager'|'responder'|'viewer';can_send:boolean};
+export type MailboxAlias={alias_address:string;mailbox_id:string;active:boolean};
+export type ManagedMailbox=OwnerMailbox&{
+  owner_user_id:string|null;forwarding_enabled:boolean;forwarding_targets:string[];
+  keep_copy:boolean;signature_text:string;auto_reply_enabled:boolean;
+  auto_reply_subject:string;auto_reply_body:string;members:MailboxMember[];aliases:MailboxAlias[];
+};
+export function manageMailDirectory<T=Record<string,unknown>>(action:string,payload:Record<string,unknown>={}){
+  return invokeFunction<T>('owner-email-directory',{action,...payload});
+}
+export function listManagedMailboxes(){
+  return manageMailDirectory<{mailboxes:ManagedMailbox[]}>('admin_overview');
+}

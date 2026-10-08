@@ -4,6 +4,7 @@ import { useEffect,useState } from 'react';
 import { ActivityIndicator,Pressable,Text,View,type ColorValue } from 'react-native';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useOwnerTheme } from '@/services/theme';
+import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 
 function TabIcon({symbol,color}:{symbol:string;color:ColorValue}){return <Text style={{fontSize:18,fontWeight:'900',color}}>{symbol}</Text>}
 
@@ -13,6 +14,7 @@ export default function RootLayout(){
  const segments=useSegments();
  const[ready,setReady]=useState(false);
  const[signedIn,setSignedIn]=useState(false);
+ const[ownerAllowed,setOwnerAllowed]=useState<boolean|null>(null);
  const onAuth=segments[0]==='auth';
  const onSearch=segments[0]==='search';
  const onAccount=segments[0]==='account';
@@ -26,6 +28,15 @@ export default function RootLayout(){
   return()=>{mounted=false;listener.subscription.unsubscribe()};
  },[]);
 
+ useEffect(()=>{
+   if(!ready||!signedIn||onAuth||onMail){setOwnerAllowed(null);return;}
+   let active=true;setOwnerAllowed(null);
+   getOwnerAuthorization().then(auth=>{if(active)setOwnerAllowed(auth.authorized)}).catch(()=>{if(active)setOwnerAllowed(false)});
+   return()=>{active=false};
+ },[ready,signedIn,onAuth,onMail]);
+ if(ready&&signedIn&&!onAuth&&!onMail&&ownerAllowed===null)
+   return <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:theme.canvas}}><ActivityIndicator size="large"/></View>;
+ if(ready&&signedIn&&!onAuth&&!onMail&&ownerAllowed===false)return <Redirect href="/mail"/>;
  if(!ready)return <View style={{flex:1,alignItems:'center',justifyContent:'center',backgroundColor:theme.canvas}}><ActivityIndicator size="large"/></View>;
  if(!signedIn&&!onAuth)return <Redirect href={onMail?{pathname:'/auth',params:{returnTo:'/mail'}}:'/auth'}/>;
 
@@ -52,6 +63,7 @@ export default function RootLayout(){
     <Tabs.Screen name="developer" options={{title:'Developer',tabBarLabel:'Dev',tabBarIcon:({color})=><TabIcon symbol="⌘" color={color}/>}}/>
     <Tabs.Screen name="operations" options={{title:'Operations',tabBarLabel:'Ops',tabBarIcon:({color})=><TabIcon symbol="⚙" color={color}/>}}/>
 
+    <Tabs.Screen name="mailboxes" options={{href:null,title:"Mailbox Management"}}/>
     <Tabs.Screen name="mail" options={{href:null,title:'Kleenest Mail',headerShown:false}}/>
     <Tabs.Screen name="account" options={{href:null,title:'Profile & Themes'}}/>
     <Tabs.Screen name="search" options={{href:null,title:'Search'}}/>
