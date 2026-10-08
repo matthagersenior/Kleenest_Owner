@@ -152,7 +152,7 @@ async function mailboxMembership(userId:string,mailboxId:string){
   if(result.error)throw result.error;
   return result.data;
 }
-async function requireMailboxAccess(userId:string,authorization:Record<string,unknown>,mailboxId:string,requireSend=false){
+async function requireMailboxAccess(userId:string,authorization:Record<string,unknown>,mailboxId:string,requireSend=false,requireModify=false){
   const mailbox=await loadMailbox(mailboxId);
   const platformOwner=Boolean(authorization.is_platform_owner);
   const admin=Boolean(authorization.authorized||authorization.is_admin||authorization.is_platform_owner);
@@ -161,6 +161,8 @@ async function requireMailboxAccess(userId:string,authorization:Record<string,un
   const personal=mailbox.mailbox_type==='personal';
   const canRead=platformOwner||owns||Boolean(member);
   if(!canRead)throw Object.assign(new Error('Mailbox access is required.'),{status:403});
+  if(requireModify&&!platformOwner&&!owns&&!['owner','manager','responder'].includes(String(member?.access_role||'')))
+    throw Object.assign(new Error('Mailbox editing permission is required.'),{status:403});
   if(requireSend){
     const canSend=platformOwner||owns||Boolean(member?.can_send);
     if(!mailbox.send_enabled||!canSend)throw Object.assign(new Error('Send permission is required for this mailbox.'),{status:403});
@@ -607,9 +609,9 @@ Deno.serve(async(req:Request)=>{
       const current=await admin.from('owner_email_center_threads').select('*').eq('owner_user_id',storageOwnerUserId).eq('id',threadId).single();
       if(current.error)throw current.error;
       if(!current.data.mailbox_id)throw Object.assign(new Error('Thread mailbox is unavailable.'),{status:409});
-      await requireMailboxAccess(userId,authorization,String(current.data.mailbox_id),false);
+      await requireMailboxAccess(userId,authorization,String(current.data.mailbox_id),false,true);
       const member=await mailboxMembership(userId,String(current.data.mailbox_id));
-      const isAdministrator=Boolean(authorization.authorized||authorization.is_admin||authorization.is_platform_owner);
+      const isAdministrator=Boolean(authorization.is_platform_owner);
       if(!isAdministrator&&!['owner','manager'].includes(String(member?.access_role||''))){
         throw Object.assign(new Error('Mailbox management permission is required to block senders.'),{status:403});
       }
@@ -632,7 +634,7 @@ Deno.serve(async(req:Request)=>{
       const current=await admin.from('owner_email_center_threads').select('*').eq('owner_user_id',storageOwnerUserId).eq('id',threadId).single();
       if(current.error)throw current.error;
       if(!current.data.mailbox_id)throw Object.assign(new Error('Thread mailbox is unavailable.'),{status:409});
-      await requireMailboxAccess(userId,authorization,String(current.data.mailbox_id),false);
+      await requireMailboxAccess(userId,authorization,String(current.data.mailbox_id),false,true);
       const patch:any={updated_at:new Date().toISOString()};
       if(action==='archive')patch.folder='archive';
       if(action==='trash')patch.folder='trash';
