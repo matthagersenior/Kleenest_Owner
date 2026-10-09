@@ -1,164 +1,21 @@
-name: Android Standalone APK
+name: Retired — Owner Android APK pipeline
 
+# KleenestOS has one production Android package: com.kleenest.platform.
+# Ship all Android builds from Kleenest_Production/apps/platform-mobile.
+# This repository remains the home of KleenestOS Web and the installable /mail client.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: owner-standalone-apk
-  cancel-in-progress: true
-
 jobs:
-  candidate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 65
-    env:
-      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || 'https://ssgesjzdvdsqacdtasje.supabase.co' }}
-      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_f1rbczgvWKSQy2g9mTDQZg_K9Wv19bL' }}
-      KLEENEST_STANDALONE_ANDROID: '1'
-      NODE_ENV: production
-      CI: 1
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Install and deduplicate dependencies
-        run: |
-          npm install --no-audit --no-fund
-          npm dedupe
-      - run: npm run audit
-      - run: npm run typecheck
-      - name: Verify Owner auth gate source
-        run: |
-          grep -q 'getSession' app/_layout.tsx
-          grep -q 'if(!signedIn&&!onAuth)return <Redirect' app/_layout.tsx
-          grep -q "'/auth'" app/_layout.tsx
-          grep -q 'Owner Sign In' app/_layout.tsx
-          test -s assets/app-icon.png
-      - name: Expo health and production bundle preflight
-        run: |
-          npx expo-doctor
-          rm -rf .preflight
-          npx expo config --type public --json > /tmp/owner-expo-config.json
-          node -e "const c=require('/tmp/owner-expo-config.json');if(c.android?.package!=='com.kleenest.owner')process.exit(1);if(c.name!=='KleenestOS')process.exit(1);if(c.icon!=='./assets/app-icon.png'||c.android?.icon!=='./assets/app-icon.png')process.exit(1)"
-          npx expo export --platform android --output-dir .preflight --clear
-          test -n "$(find .preflight -type f -print -quit)"
-      - name: Generate clean Android native project
-        run: npx expo prebuild --platform android --clean
-      - name: Apply supplied Owner launcher artwork
-        run: |
-          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            dir="android/app/src/main/res/mipmap-$density"
-            mkdir -p "$dir"
-            rm -f "$dir"/ic_launcher.png "$dir"/ic_launcher.webp "$dir"/ic_launcher_round.png "$dir"/ic_launcher_round.webp "$dir"/ic_launcher_foreground.png "$dir"/ic_launcher_foreground.webp
-            cp assets/app-icon.png "$dir/ic_launcher.png"
-            cp assets/app-icon.png "$dir/ic_launcher_round.png"
-          done
-          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-          test -s android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-      - name: Pre-package native and manifest diagnostics
-        working-directory: android
-        run: |
-          ./gradlew :app:processReleaseMainManifest --no-daemon
-          find app/build/intermediates -path '*release*AndroidManifest.xml' -print -exec grep -n '<uses-permission' {} \; > /tmp/owner-manifest-permissions.txt || true
-          cat /tmp/owner-manifest-permissions.txt
-      - name: Verify standalone release dependency graph
-        working-directory: android
-        run: |
-          ./gradlew :app:dependencies --configuration releaseRuntimeClasspath --no-daemon > /tmp/owner-release-deps.txt
-          grep -Eqi 'react-native-reanimated' /tmp/owner-release-deps.txt
-          grep -Eqi 'react-native-worklets' /tmp/owner-release-deps.txt
-          if grep -Eqi 'expo-dev-client|expo-dev-launcher|expo-dev-menu' /tmp/owner-release-deps.txt; then
-            echo 'Expo development runtime leaked into Owner release dependencies.' >&2
-            exit 1
-          fi
-      - name: Build internal release candidate
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-      - name: Verify release candidate and ARM64 payload
-        run: |
-          test -f android/app/build/outputs/apk/release/app-release.apk
-          unzip -p android/app/build/outputs/apk/release/app-release.apk assets/index.android.bundle > /tmp/owner.bundle
-          test -s /tmp/owner.bundle
-          grep -a -q 'ssgesjzdvdsqacdtasje.supabase.co' /tmp/owner.bundle
-          grep -a -q 'KleenestOS' /tmp/owner.bundle
-          grep -a -q 'Owner Sign In' /tmp/owner.bundle
-          ! grep -a -q 'Development Build' /tmp/owner.bundle
-          unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -q 'lib/arm64-v8a/libreactnative.so'
-          unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -q 'lib/arm64-v8a/libhermesvm.so'
-      - name: Enable KVM for x86 Android emulator
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm || true
-          sudo chmod 666 /dev/kvm
-      - name: Android 16 x86_64 startup diagnostic gate
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          arch: x86_64
-          profile: pixel_6
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: bash scripts/android-startup-smoke.sh android/app/build/outputs/apk/release/app-release.apk com.kleenest.owner Owner-x86_64
-      - name: Upload x86 startup diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Kleenest-Owner-x86-Startup-Diagnostics
-          path: android-startup-logs
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Stage internal candidate
-        run: cp android/app/build/outputs/apk/release/app-release.apk KleenestOS-Candidate.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: KleenestOS-Internal-Candidate
-          path: KleenestOS-Candidate.apk
-          if-no-files-found: error
-          retention-days: 1
-
-  arm64-package:
-    name: Verify ARM64 release payload
-    needs: candidate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: KleenestOS-Internal-Candidate
-          path: candidate
-      - name: Verify ARM64 native libraries, package identity, and Email Center bundle
-        run: bash scripts/android-arm64-apk-audit.sh candidate/KleenestOS-Candidate.apk com.kleenest.owner
-      - name: Explain runtime coverage
-        run: |
-          echo 'Android 16 x86_64 startup passed in the candidate job.'
-          echo 'Hosted macOS ARM64 virtualization was unsupported (HV_UNSUPPORTED).'
-          echo 'ARM64 native payload is verified here; a physical ARM64 runtime test is not claimed.'
-
-  promote:
-    needs: candidate
+  canonical-owner-android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: KleenestOS-Internal-Candidate
-          path: candidate
-      - run: cp candidate/KleenestOS-Candidate.apk KleenestOS-Standalone.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: KleenestOS-Standalone-APK
-          path: KleenestOS-Standalone.apk
-          if-no-files-found: error
-          retention-days: 30
+      - name: Keep Android release authority in Production
+        run: |
+          echo 'Retired: no Android package is built from Kleenest_Owner.'
+          echo 'Canonical package: com.kleenest.platform.'
+          echo 'Canonical workflow: Kleenest_Production/.github/workflows/android-family.yml.'
+          echo 'Email parity is published to the Production Owner app and Kleenest Mail web client.'
