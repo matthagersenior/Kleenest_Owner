@@ -27,7 +27,7 @@ expect(directory.includes('owner_email_mailbox_members'),'Mailbox directory must
 expect(!directory.includes('user_metadata'),'Mailbox authorization must not trust user-editable metadata.');
 expect(Array.isArray(tsconfig.exclude)&&tsconfig.exclude.includes('supabase/functions'),'Expo typecheck must exclude Deno Edge Function sources.');
 expect(pagesWorkflow.includes('dist/mail/index.html'),'Pages deployment must give the installed /mail launch path a real index document.');
-expect(androidWorkflow.includes("if(!signedIn&&!onAuth)return <Redirect"),'Android release guard must validate the semantic Owner auth gate.');
-expect(!androidWorkflow.includes('Redirect href="/auth"'),'Android release guard must not freeze the old auth redirect implementation.');
+expect(androidWorkflow.includes('Retired')&&androidWorkflow.includes('com.kleenest.platform'),'Legacy Owner Android pipeline must be explicitly retired in favor of the canonical package.');
+expect(!androidWorkflow.includes('assembleRelease')&&!androidWorkflow.includes('upload-artifact'),'Legacy Owner workflow must never publish a second APK.');
 
 console.log('Kleenest Mail PWA audit passed.');
