@@ -68,3 +68,11 @@ export async function updateTileIngestionPolicy(patch:{tile_step_degrees?:number
   });
   return unwrap(data,error);
 }
+
+export async function setNationalIngestionPolicy(patch:{national_ingestion_enabled?:boolean;travel_priority_enabled?:boolean;tourism_priority_enabled?:boolean;major_markets_enabled?:boolean}){
+  const {data,error}=await getSupabaseClient().rpc('owner_update_ingestion_capacity_policy',{
+    p_patch:patch,
+    p_reason:'Updated national ingestion priorities from KleenestOS Ingestion Control',
+  });
+  return unwrap(data,error);
+}

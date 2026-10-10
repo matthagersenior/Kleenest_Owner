@@ -1,7 +1,7 @@
 import { useCallback,useEffect,useMemo,useState } from 'react';
 import { ActivityIndicator,Pressable,RefreshControl,ScrollView,Text,View } from 'react-native';
 import { DiagnosticDisclosure,HealthCard,OSHero,PrimaryAction,SectionHeader,StatusPill,useOSCardStyle } from '@/components/KleenestOS';
-import { getOwnerIngestionControl,repairStalledIngestion,runBoundedIngestionCycle,setCoverageMarketEnabled,setGlobalIngestionPaused,setIngestionSourceEnabled,setIdleDemandIngestionEnabled,updateTileIngestionPolicy } from '@/services/ownerIngestion';
+import { getOwnerIngestionControl,repairStalledIngestion,runBoundedIngestionCycle,setCoverageMarketEnabled,setGlobalIngestionPaused,setIngestionSourceEnabled,setIdleDemandIngestionEnabled,setNationalIngestionPolicy,updateTileIngestionPolicy } from '@/services/ownerIngestion';
 import { useOwnerTheme } from '@/services/theme';
 
 type Snapshot=Record<string,unknown>;
@@ -55,6 +55,9 @@ export default function IngestionControl(){
   const completedMarkets=num(marketStatus.completed ?? marketStatus.complete);
   const backgroundAllowed=bool(capacity.allow_background_ingestion);
   const idleDemandEnabled=bool(capacityPolicy.idle_demand_enabled ?? capacity.idle_demand_enabled);
+  const nationalEnabled=bool(capacityPolicy.national_ingestion_enabled);
+  const travelPriorityEnabled=bool(capacityPolicy.travel_priority_enabled);
+  const tourismPriorityEnabled=bool(capacityPolicy.tourism_priority_enabled);
   const capacityMode=text(capacity.mode)||'unknown';
   const backgroundPercent=num(capacity.background_percent);
   const backgroundReason=text(capacity.reason)||'live capacity unavailable';
@@ -86,7 +89,7 @@ export default function IngestionControl(){
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
       <HealthCard label="Canonical locations" value={canonical.total==null?'—':num(canonical.total).toLocaleString()} tone={canonical.total==null?'warning':'good'} detail={canonical.total==null?'Telemetry unavailable — pull to retry':`+${num(canonical.added_1h).toLocaleString()} last hour · +${num(canonical.added_24h).toLocaleString()} last 24h · refreshed ${text(canonical.generated_at)||'recently'}`}/>
       <HealthCard label="Global" value={!hasSnapshot?'Unavailable':paused?'Paused':backgroundAllowed?'Allowed':'Yielding'} tone={!hasSnapshot?'warning':paused?'warning':backgroundAllowed?'good':'neutral'} detail={!hasSnapshot?'Live status could not be loaded':paused?text(storage.pause_reason)||'Owner/storage guard pause':capacityDetail}/>
-      <HealthCard label="Coverage" value={coverageEnabled?'Ready':'Off'} tone={coverageEnabled?'good':'warning'} detail="Overture-backed expansion"/>
+      <HealthCard label="Coverage" value={coverageEnabled?'Ready':'Off'} tone={coverageEnabled?'good':'warning'} detail={nationalEnabled?'Nationwide cities · travel corridors · tourism priorities':'Regional coverage only'}/>
       <HealthCard label="Pipeline backlog" value={!hasSnapshot?'—':`${num(pipeline.pending_rows).toLocaleString()} rows`} tone={!hasSnapshot||num(pipeline.failed_batches)?'warning':'good'} detail={!hasSnapshot?'Live pipeline unavailable':`${num(pipeline.pending_batches)} staged batches · ${num(pipeline.completed_1h)} completed last hour`}/>
       <HealthCard label="Background" value={!hasSnapshot?'Unavailable':enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={hasSnapshot&&dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={!hasSnapshot?'Live background status unavailable':`${dueBackgroundSources} due now · ${capacityMode} mode · ${backgroundPercent}% background capacity`}/>
       <HealthCard label="Storage use" value={pressure==null?'—':pct(pressure)} tone={paused?'warning':'neutral'} detail={pressure==null?'Live storage telemetry unavailable':`Pause at ${pct(storage.pause_fraction)} · hard stop ${pct(storage.hard_stop_fraction)}`}/>
@@ -95,6 +98,9 @@ export default function IngestionControl(){
     <View style={{...card,gap:10}}>
       <SectionHeader title="Master controls" body="These controls act on the real ingestion scheduler and safety guard. Discovery search itself remains usable while background work is paused."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+        <PrimaryAction label={busy==='national'?'Working…':nationalEnabled?'National ingestion ON':'Enable national ingestion'} danger={nationalEnabled} disabled={!!busy||!hasSnapshot} onPress={()=>act('national',()=>setNationalIngestionPolicy({national_ingestion_enabled:!nationalEnabled}))}/>
+        <PrimaryAction label={busy==='travel'?'Working…':travelPriorityEnabled?'Travel corridors prioritized':'Prioritize travel corridors'} danger={travelPriorityEnabled} disabled={!!busy||!hasSnapshot||!nationalEnabled} onPress={()=>act('travel',()=>setNationalIngestionPolicy({travel_priority_enabled:!travelPriorityEnabled}))}/>
+        <PrimaryAction label={busy==='tourism'?'Working…':tourismPriorityEnabled?'Tourism prioritized':'Prioritize tourism'} danger={tourismPriorityEnabled} disabled={!!busy||!hasSnapshot||!nationalEnabled} onPress={()=>act('tourism',()=>setNationalIngestionPolicy({tourism_priority_enabled:!tourismPriorityEnabled}))}/>
         <PrimaryAction label={busy==='idle-demand'?'Working…':idleDemandEnabled?'Idle-demand acceleration ON':'Enable idle-demand acceleration'} danger={idleDemandEnabled} disabled={!!busy||!hasSnapshot} onPress={()=>act('idle-demand',()=>setIdleDemandIngestionEnabled(!idleDemandEnabled))}/>
         <PrimaryAction label={busy==='global'?'Working…':paused?'Resume background ingestion':'Pause background ingestion'} danger={!paused} disabled={!!busy||!hasSnapshot} onPress={()=>act('global',()=>setGlobalIngestionPaused(!paused))}/>
         <PrimaryAction label={busy==='cycle'?'Starting…':backgroundAllowed?'Run one bounded cycle':'Waiting for spare capacity'} disabled={!!busy||!hasSnapshot||paused||!backgroundAllowed} onPress={()=>act('cycle',runBoundedIngestionCycle)}/>
