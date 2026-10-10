@@ -23,14 +23,15 @@ function pct(value:unknown){return `${Math.round(num(value)*100)}%`}
 export default function IngestionControl(){
   const theme=useOwnerTheme();
   const card=useOSCardStyle();
-  const[data,setData]=useState<Snapshot|null>(null),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[busy,setBusy]=useState<string|null>(null),[error,setError]=useState<string|null>(null);
+  const[data,setData]=useState<Snapshot|null>(null),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[busy,setBusy]=useState<string|null>(null),[error,setError]=useState<string|null>(null),[errorHeading,setErrorHeading]=useState('Telemetry unavailable'),[notice,setNotice]=useState<string|null>(null);
 
-  const load=useCallback(async()=>{setError(null);setData(await getOwnerIngestionControl())},[]);
+  const load=useCallback(async()=>{setData(await getOwnerIngestionControl())},[]);
   useEffect(()=>{load().catch(c=>setError(c instanceof Error?c.message:String(c))).finally(()=>setLoading(false))},[load]);
 
-  async function refresh(){setRefreshing(true);try{await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setRefreshing(false)}}
-  async function act(key:string,fn:()=>Promise<unknown>){setBusy(key);setError(null);try{await fn();await load()}catch(c){setError(c instanceof Error?c.message:String(c))}finally{setBusy(null)}}
+  async function refresh(){setRefreshing(true);setError(null);try{await load();setNotice(null)}catch(c){setErrorHeading('Telemetry refresh failed');setError(c instanceof Error?c.message:String(c))}finally{setRefreshing(false)}}
+  async function act(key:string,fn:()=>Promise<unknown>){setBusy(key);setError(null);setNotice(null);try{await fn()}catch(c){setErrorHeading('Control action failed');setError(c instanceof Error?c.message:String(c));setBusy(null);return}try{await load();setNotice('Control action completed.')}catch(c){setErrorHeading('Action completed; telemetry refresh failed');setError(c instanceof Error?c.message:String(c));setNotice('The control action succeeded. Pull to refresh its displayed status.')}finally{setBusy(null)}}
 
+  const hasSnapshot=data!==null;
   const status=object(data?.status);
   const storage=object(data?.storage_guard ?? status.storage_guard);
   const capacity=object(data?.capacity);
@@ -56,7 +57,7 @@ export default function IngestionControl(){
   const idleDemandEnabled=bool(capacityPolicy.idle_demand_enabled ?? capacity.idle_demand_enabled);
   const capacityMode=text(capacity.mode)||'unknown';
   const backgroundPercent=num(capacity.background_percent);
-  const backgroundReason=text(capacity.reason)||'capacity check pending';
+  const backgroundReason=text(capacity.reason)||'live capacity unavailable';
   const enabledBackgroundSources=num(background.enabled_sources);
   const dueBackgroundSources=num(background.due_sources);
   const pressure=storage.pressure_fraction ?? storage.observed_fraction;
@@ -76,26 +77,27 @@ export default function IngestionControl(){
 
   return <ScrollView style={{backgroundColor:theme.canvas}} contentInsetAdjustmentBehavior="automatic" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[theme.accent]} tintColor={theme.accent}/>} contentContainerStyle={{padding:16,gap:16,paddingBottom:84,backgroundColor:theme.canvas}}>
     <OSHero eyebrow="KLEENESTOS · INGESTION" title="Ingestion Control" body="One operating surface for Discovery, coverage expansion, refresh/verification, and enrichment. Retired implementation generations stay out of the daily Owner workflow.">
-      <StatusPill label={paused?'BACKGROUND INGESTION PAUSED':'BACKGROUND INGESTION RUNNING'} tone={paused?'warning':'good'}/>
+      <StatusPill label={!hasSnapshot?'INGESTION STATUS UNAVAILABLE':paused?'BACKGROUND INGESTION PAUSED':backgroundAllowed?'BACKGROUND INGESTION ALLOWED':'BACKGROUND INGESTION YIELDING'} tone={!hasSnapshot?'neutral':paused?'warning':backgroundAllowed?'good':'warning'}/>
     </OSHero>
 
-    {error?<View style={{...card,borderColor:theme.danger}}><Text style={{color:theme.danger,fontWeight:'900'}}>Control action failed</Text><Text selectable style={{color:theme.danger}}>{error}</Text></View>:null}
+    {error?<View style={{...card,borderColor:theme.danger}}><Text style={{color:theme.danger,fontWeight:'900'}}>{errorHeading}</Text><Text selectable style={{color:theme.danger}}>{error}</Text></View>:null}
+    {notice?<View style={card}><Text style={{color:theme.ink}}>{notice}</Text></View>:null}
 
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:10}}>
-      <HealthCard label="Canonical locations" value={num(canonical.total).toLocaleString()} tone="good" detail={`+${num(canonical.added_1h).toLocaleString()} last hour · +${num(canonical.added_24h).toLocaleString()} last 24h`}/>
-      <HealthCard label="Global" value={paused?'Paused':backgroundAllowed?'Running':'Yielding'} tone={paused?'warning':backgroundAllowed?'good':'neutral'} detail={paused?text(storage.pause_reason)||'Owner/storage guard pause':capacityDetail}/>
+      <HealthCard label="Canonical locations" value={canonical.total==null?'—':num(canonical.total).toLocaleString()} tone={canonical.total==null?'warning':'good'} detail={canonical.total==null?'Telemetry unavailable — pull to retry':`+${num(canonical.added_1h).toLocaleString()} last hour · +${num(canonical.added_24h).toLocaleString()} last 24h · refreshed ${text(canonical.generated_at)||'recently'}`}/>
+      <HealthCard label="Global" value={!hasSnapshot?'Unavailable':paused?'Paused':backgroundAllowed?'Allowed':'Yielding'} tone={!hasSnapshot?'warning':paused?'warning':backgroundAllowed?'good':'neutral'} detail={!hasSnapshot?'Live status could not be loaded':paused?text(storage.pause_reason)||'Owner/storage guard pause':capacityDetail}/>
       <HealthCard label="Coverage" value={coverageEnabled?'Ready':'Off'} tone={coverageEnabled?'good':'warning'} detail="Overture-backed expansion"/>
-      <HealthCard label="Pipeline backlog" value={`${num(pipeline.pending_rows).toLocaleString()} rows`} tone={num(pipeline.failed_batches)?'warning':'good'} detail={`${num(pipeline.pending_batches)} staged batches · ${num(pipeline.completed_1h)} completed last hour`}/>
-      <HealthCard label="Background" value={enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={`${dueBackgroundSources} due now · ${capacityMode} mode · ${backgroundPercent}% background capacity`}/>
-      <HealthCard label="Storage use" value={pct(pressure)} tone={paused?'warning':'neutral'} detail={`Pause at ${pct(storage.pause_fraction)} · hard stop ${pct(storage.hard_stop_fraction)}`}/>
+      <HealthCard label="Pipeline backlog" value={!hasSnapshot?'—':`${num(pipeline.pending_rows).toLocaleString()} rows`} tone={!hasSnapshot||num(pipeline.failed_batches)?'warning':'good'} detail={!hasSnapshot?'Live pipeline unavailable':`${num(pipeline.pending_batches)} staged batches · ${num(pipeline.completed_1h)} completed last hour`}/>
+      <HealthCard label="Background" value={!hasSnapshot?'Unavailable':enabledBackgroundSources? `${enabledBackgroundSources} sources` : 'Idle'} tone={hasSnapshot&&dueBackgroundSources&&backgroundAllowed?'good':'neutral'} detail={!hasSnapshot?'Live background status unavailable':`${dueBackgroundSources} due now · ${capacityMode} mode · ${backgroundPercent}% background capacity`}/>
+      <HealthCard label="Storage use" value={pressure==null?'—':pct(pressure)} tone={paused?'warning':'neutral'} detail={pressure==null?'Live storage telemetry unavailable':`Pause at ${pct(storage.pause_fraction)} · hard stop ${pct(storage.hard_stop_fraction)}`}/>
     </View>
 
     <View style={{...card,gap:10}}>
       <SectionHeader title="Master controls" body="These controls act on the real ingestion scheduler and safety guard. Discovery search itself remains usable while background work is paused."/>
       <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
-        <PrimaryAction label={busy==='idle-demand'?'Working…':idleDemandEnabled?'Idle-demand acceleration ON':'Enable idle-demand acceleration'} danger={idleDemandEnabled} disabled={!!busy} onPress={()=>act('idle-demand',()=>setIdleDemandIngestionEnabled(!idleDemandEnabled))}/>
-        <PrimaryAction label={busy==='global'?'Working…':paused?'Resume background ingestion':'Pause background ingestion'} danger={!paused} disabled={!!busy} onPress={()=>act('global',()=>setGlobalIngestionPaused(!paused))}/>
-        <PrimaryAction label={busy==='cycle'?'Starting…':backgroundAllowed?'Run one bounded cycle':'Waiting for spare capacity'} disabled={!!busy||paused||!backgroundAllowed} onPress={()=>act('cycle',runBoundedIngestionCycle)}/>
+        <PrimaryAction label={busy==='idle-demand'?'Working…':idleDemandEnabled?'Idle-demand acceleration ON':'Enable idle-demand acceleration'} danger={idleDemandEnabled} disabled={!!busy||!hasSnapshot} onPress={()=>act('idle-demand',()=>setIdleDemandIngestionEnabled(!idleDemandEnabled))}/>
+        <PrimaryAction label={busy==='global'?'Working…':paused?'Resume background ingestion':'Pause background ingestion'} danger={!paused} disabled={!!busy||!hasSnapshot} onPress={()=>act('global',()=>setGlobalIngestionPaused(!paused))}/>
+        <PrimaryAction label={busy==='cycle'?'Starting…':backgroundAllowed?'Run one bounded cycle':'Waiting for spare capacity'} disabled={!!busy||!hasSnapshot||paused||!backgroundAllowed} onPress={()=>act('cycle',runBoundedIngestionCycle)}/>
         <PrimaryAction label={busy==='repair'?'Repairing…':'Repair stalled cells'} disabled={!!busy} onPress={()=>act('repair',repairStalledIngestion)}/>
       </View>
     </View>
