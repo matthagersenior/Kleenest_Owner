@@ -37,15 +37,15 @@ export function OSHero({eyebrow,title,body,children}:{eyebrow:string;title:strin
 export function StatusPill({label,tone='neutral'}:{label:string;tone?:'good'|'warning'|'danger'|'neutral'}){
   const t=useOwnerTheme();
   const color=tone==='good'?t.success:tone==='warning'?t.warning:tone==='danger'?t.danger:t.muted;
-  return <View style={{alignSelf:'flex-start',borderRadius:999,paddingHorizontal:9,paddingVertical:5,backgroundColor:t.surfaceRaised,borderWidth:1,borderColor:tone==='neutral'?t.line:color}}>
+  return <View style={{alignSelf:'flex-start',maxWidth:'100%',borderRadius:999,paddingHorizontal:9,paddingVertical:5,backgroundColor:t.surfaceRaised,borderWidth:1,borderColor:tone==='neutral'?t.line:color}}>
     <Text style={{color,fontWeight:'900',fontSize:11}}>{label}</Text>
   </View>
 }
 
 export function HealthCard({label,value,detail,tone='neutral',onPress}:{label:string;value:string|number;detail?:string;tone?:'good'|'warning'|'danger'|'neutral';onPress?:()=>void}){
   const t=useOwnerTheme();const card=useOSCardStyle();
-  const body=<View style={{...card,minWidth:145,flexGrow:1}}><StatusPill label={label} tone={tone}/><Text style={{fontSize:25,fontWeight:'900',color:t.ink}}>{String(value)}</Text>{detail?<Text style={{color:t.muted,lineHeight:18}}>{detail}</Text>:null}</View>;
-  return onPress?<Pressable onPress={onPress} style={{flexGrow:1,flexBasis:145}}>{body}</Pressable>:body;
+  const body=<View style={{...card,minWidth:145,maxWidth:'100%',flexBasis:200,flexGrow:1,flexShrink:1}}><StatusPill label={label} tone={tone}/><Text style={{fontSize:25,fontWeight:'900',color:t.ink}}>{String(value)}</Text>{detail?<Text style={{color:t.muted,lineHeight:18}}>{detail}</Text>:null}</View>;
+  return onPress?<Pressable onPress={onPress} style={{flexGrow:1,flexShrink:1,flexBasis:200,maxWidth:'100%'}}>{body}</Pressable>:body;
 }
 
 export function SectionHeader({title,body,actionLabel,onAction}:{title:string;body?:string;actionLabel?:string;onAction?:()=>void}){

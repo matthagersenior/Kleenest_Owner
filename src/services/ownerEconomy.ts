@@ -23,7 +23,7 @@ export async function getOwnerEconomySnapshot(){
   ]);
   if(snapshot.error)throw new Error(snapshot.error.message);
   if(catalog.error)throw new Error(catalog.error.message);
-  const s=object(snapshot.data);
+  const s=object(snapshot.data);if(['discoveries','on_site_discoveries','xp_last_24h','active_objectives'].some(key=>typeof s[key]!=='number'||!Number.isFinite(s[key])))throw new Error('Economy snapshot incomplete.');
   return {
     usersWithXp:Number(s.users_with_xp??0),
     xpAwarded:Number(s.xp_awarded??0),
