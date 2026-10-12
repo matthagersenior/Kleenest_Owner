@@ -1,3 +1,4 @@
+import UserTallyPanel from '@/components/UserTallyPanel';
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
@@ -142,7 +143,7 @@ export default function KleenestOSCommandCenter() {
 
   async function refresh() {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    try { await load(); } catch(cause) { setState(empty); setErrors([errorMessage(cause)]); } finally { setRefreshing(false); }
   }
 
   const nativePush = object(state.operations?.nativePush);
@@ -178,22 +179,23 @@ export default function KleenestOSCommandCenter() {
       <Link href="/communications" asChild><Pressable style={{ ...osCard, flexGrow: 1, minWidth: 150, backgroundColor: theme.surfaceRaised, borderColor: theme.accent }}><Text style={{ color: theme.accent, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>OWNER EMAIL</Text><Text style={{ color: osColors.ink, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Kleenest Email Center →</Text><Text style={{ color: osColors.muted, marginTop: 4 }}>Read and send Kleenest mail, search conversations, reply, archive and manage unread state without Gmail.</Text></Pressable></Link>
     </View>
 
+    <UserTallyPanel />
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-      <HealthCard label="Discovery" value={number(state.economy?.discoveries).toLocaleString()} tone="neutral" detail={`${number(state.economy?.onSiteDiscoveries).toLocaleString()} on-site · live Discovery grows canonical locations`} />
-      <HealthCard label="Native push" value={activePushTokens} tone={nativePushFailures > 0 ? 'warning' : 'good'} detail={`${nativePushFailures} failed/expired · active device tokens`} />
-      <HealthCard label="Integrity" value={integrityIssueCount} tone={integrityIssueCount > 0 ? 'danger' : 'good'} detail="Canonical orphan/consistency checks" />
-      <HealthCard label="Moderation" value={reviewCount} tone={reviewCount ? 'warning' : 'good'} detail="Pending review reports" />
+      <HealthCard label="User discoveries" value={state.economy ? number(state.economy.discoveries).toLocaleString() : 'Unavailable'} tone="neutral" detail={`${state.economy ? number(state.economy.onSiteDiscoveries).toLocaleString() : 'Unavailable'} on-site · user contributions, not total places`} />
+      <HealthCard label="Native push" value={state.operations ? activePushTokens : 'Unavailable'} tone={!state.operations ? 'warning' : nativePushFailures > 0 ? 'warning' : 'good'} detail={state.operations ? `${nativePushFailures} failed/expired · registered notification tokens · not users` : 'Operations snapshot unavailable'} />
+      <HealthCard label="Integrity" value={state.operations && Array.isArray(state.operations.integrity) ? integrityIssueCount : 'Unavailable'} tone={!state.operations ? 'warning' : integrityIssueCount > 0 ? 'danger' : 'good'} detail="Canonical orphan/consistency checks" />
+      <HealthCard label="Moderation" value={state.moderation ? reviewCount : 'Unavailable'} tone={!state.moderation ? 'warning' : reviewCount ? 'warning' : 'good'} detail="Pending review reports" />
     </View>
 
     <View style={{ gap: 9 }}>
       <SectionHeader title="Needs attention" body="KleenestOS promotes actionable platform conditions here instead of making you hunt through diagnostics." />
-      {attention.length ? attention.map(item => <AttentionCard key={item.key} item={item} />) : <View style={{ ...osCard, gap: 5 }}><Text style={{ color: osColors.good, fontWeight: '900' }}>No active owner actions</Text><Text style={{ color: osColors.muted }}>Current operational, moderation, integrity, delivery, and economy gates are clear.</Text></View>}
+      {attention.length ? attention.map(item => <AttentionCard key={item.key} item={item} />) : <View style={{ ...osCard, gap: 5 }}><Text style={{ color: osColors.good, fontWeight: '900' }}>{errors.length ? 'Some checks are unavailable' : 'No active owner actions'}</Text><Text style={{ color: osColors.muted }}>{errors.length ? 'Refresh failed checks before treating the platform as clear.' : 'Current operational, moderation, integrity, delivery, and economy gates are clear.'}</Text></View>}
     </View>
 
     <View style={{ ...osCard, backgroundColor: theme.accent, borderColor:theme.accent, gap: 8 }}>
       <Text style={{ color: '#bde4cf', fontWeight: '900', letterSpacing: 1, fontSize: 10 }}>ECONOMY PULSE</Text>
-      <Text style={{ color: 'white', fontSize: 22, fontWeight: '900' }}>{number(state.economy?.xpLast24h).toLocaleString()} XP issued in the last 24 hours</Text>
-      <Text style={{ color: '#dce8e1' }}>{number(state.economy?.discoveries).toLocaleString()} canonical discoveries · {number(state.economy?.onSiteDiscoveries).toLocaleString()} on-site live · {number(state.economy?.activeObjectives).toLocaleString()} active objectives</Text>
+      <Text style={{ color: 'white', fontSize: 22, fontWeight: '900' }}>{state.economy ? number(state.economy.xpLast24h).toLocaleString() : 'Unavailable'} XP issued in the last 24 hours</Text>
+      <Text style={{ color: '#dce8e1' }}>{state.economy ? number(state.economy.discoveries).toLocaleString() : 'Unavailable'} canonical discoveries · {state.economy ? number(state.economy.onSiteDiscoveries).toLocaleString() : 'Unavailable'} on-site live · {state.economy ? number(state.economy.activeObjectives).toLocaleString() : 'Unavailable'} active objectives</Text>
       <Link href="/progression" asChild><Pressable style={{ alignSelf: 'flex-start', backgroundColor: theme.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 }}><Text style={{ fontWeight: '900', color: osColors.ink }}>Open Economy →</Text></Pressable></Link>
     </View>
 

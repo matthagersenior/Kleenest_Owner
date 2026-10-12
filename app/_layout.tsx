@@ -1,3 +1,4 @@
+import { useAppActivity } from '@/services/appActivity';
 import { Redirect,Tabs,useRouter,useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect,useState } from 'react';
@@ -19,6 +20,7 @@ export default function RootLayout(){
  const onSearch=segments[0]==='search';
  const onAccount=segments[0]==='account';
  const onMail=segments[0]==='mail';
+ useAppActivity(ready && signedIn);
 
  useEffect(()=>{
   let mounted=true;

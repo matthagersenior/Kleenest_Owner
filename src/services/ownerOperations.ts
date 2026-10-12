@@ -12,5 +12,6 @@ export async function getOwnerOperationsSnapshot(){
     client.rpc('admin_list_activity_events',{p_limit:100})
   ]);
   for(const result of [overview,integrity,push,nativePush,resources,activity])if(result.error)throw new Error(result.error.message);
+  if(!Array.isArray(integrity.data)||!nativePush.data||typeof nativePush.data.active_tokens!=='number')throw new Error('Operations snapshot incomplete.');
   return {overview:overview.data,integrity:integrity.data,push:push.data,nativePush:nativePush.data,resources:resources.data,activity:activity.data};
 }
