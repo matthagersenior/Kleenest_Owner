@@ -14,16 +14,16 @@ export const osColors=new Proxy({} as Record<string,string>,{
 }) as {ink:string;green:string;mint:string;paper:string;white:string;muted:string;border:string;danger:string;warning:string;good:string};
 
 export const osCard=new Proxy({} as any,{
-  ownKeys(){return['backgroundColor','borderRadius','padding','borderWidth','borderColor','gap']},
+  ownKeys(){return['backgroundColor','borderRadius','padding','borderWidth','borderColor','gap','maxWidth','minWidth','flexShrink']},
   getOwnPropertyDescriptor(){return{enumerable:true,configurable:true}},
   get(_target,prop:string){
     const t=getResolvedOwnerTheme();
-    const map:any={backgroundColor:t.surface,borderRadius:18,padding:15,borderWidth:1,borderColor:t.line,gap:7};
+    const map:any={backgroundColor:t.surface,borderRadius:18,padding:15,borderWidth:1,borderColor:t.line,gap:7,maxWidth:'100%',minWidth:0,flexShrink:1};
     return map[prop];
   }
-}) as {backgroundColor:string;borderRadius:number;padding:number;borderWidth:number;borderColor:string;gap:number};
+}) as {backgroundColor:string;borderRadius:number;padding:number;borderWidth:number;borderColor:string;gap:number;maxWidth:'100%';minWidth:number;flexShrink:number};
 
-export function useOSCardStyle(){const t=useOwnerTheme();return{backgroundColor:t.surface,borderRadius:18,padding:15,borderWidth:1,borderColor:t.line,gap:7} as const}
+export function useOSCardStyle(){const t=useOwnerTheme();return{backgroundColor:t.surface,borderRadius:18,padding:15,borderWidth:1,borderColor:t.line,gap:7,maxWidth:'100%',minWidth:0,flexShrink:1} as const}
 
 export function OSHero({eyebrow,title,body,children}:{eyebrow:string;title:string;body:string;children?:ReactNode}){
   const t=useOwnerTheme();
