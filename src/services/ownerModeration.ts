@@ -1,14 +1,14 @@
 import { getSupabaseClient } from '@/lib/supabase';
 import { getOwnerAuthorization } from './ownerAuthorization';
 
-function rows(value:unknown):any[]{if(Array.isArray(value))return value;if(value&&typeof value==='object'){const v=value as Record<string,unknown>;for(const key of ['items','reports','rows','results'])if(Array.isArray(v[key]))return v[key] as any[];}return [];}
+function rows(value:unknown):any[]{if(Array.isArray(value))return value;if(value&&typeof value==='object'){const v=value as Record<string,unknown>;for(const key of ['items','reports','rows','results'])if(Array.isArray(v[key]))return v[key] as any[];}throw new Error('Moderation queue snapshot incomplete.');}
 async function requireOwner(){const authorization=await getOwnerAuthorization();if(!authorization.authorized)throw new Error('Owner administration authority required.');return authorization;}
 
 export async function getOwnerModerationQueues(){
   await requireOwner();
   const client=getSupabaseClient();
   const [reviewReports,userReports,aiReports,pendingBusinesses]=await Promise.all([
-    client.rpc('admin_list_review_reports',{p_status:'pending'}),
+    client.rpc('admin_list_review_reports',{p_status:null}),
     client.rpc('admin_list_user_safety_reports',{p_status:'open'}),
     client.rpc('admin_list_ai_response_reports',{p_status:'open'}),
     client.rpc('admin_list_pending_businesses')
@@ -17,7 +17,7 @@ export async function getOwnerModerationQueues(){
   if(userReports.error)throw new Error(userReports.error.message);
   if(aiReports.error)throw new Error(aiReports.error.message);
   if(pendingBusinesses.error)throw new Error(pendingBusinesses.error.message);
-  return {reviewReports:rows(reviewReports.data),userReports:rows(userReports.data),aiReports:rows(aiReports.data),pendingBusinesses:rows(pendingBusinesses.data)};
+  return {reviewReports:rows(reviewReports.data).filter(row=>['pending','reviewing'].includes(row.status)),userReports:rows(userReports.data),aiReports:rows(aiReports.data),pendingBusinesses:rows(pendingBusinesses.data)};
 }
 
 export async function resolveOwnerReviewReport(input:{reportId:string;resolution:'dismiss'|'hide'|'restore';reason:string;reviewStatus?:string|null}){
