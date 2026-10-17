@@ -71,6 +71,7 @@ export default function RootLayout(){
     <Tabs.Screen name="search" options={{href:null,title:'Search'}}/>
     <Tabs.Screen name="auth" options={{href:null,title:'Owner Sign In',headerShown:false}}/>
     <Tabs.Screen name="access" options={{href:null,title:'People & Access'}}/>
+    <Tabs.Screen name="guest-insights" options={{href:null,title:'Guest Insights'}}/>
     <Tabs.Screen name="businesses" options={{href:null,title:'Businesses & Network'}}/>
     <Tabs.Screen name="progression" options={{href:null,title:'Economy'}}/>
     <Tabs.Screen name="creator-missions" options={{href:null,title:'Creator Missions'}}/>
