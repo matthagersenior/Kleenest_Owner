@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'expo-router';
 import { AppState, Pressable, Text, View } from 'react-native';
 import { getSupabaseClient } from '@/lib/supabase';
 import { HealthCard, SectionHeader, useOSCardStyle } from './KleenestOS';
@@ -46,6 +47,7 @@ export default function UserTallyPanel() {
       <Text style={{ color: theme.muted }}>{data ? `Updated ${new Date(data.updated_at).toLocaleString()} · refreshes every minute` : 'Counts unavailable until a successful refresh'}</Text>
     </Pressable>
     {error ? <Text accessibilityRole="alert" style={{ color: theme.danger }}>{error}</Text> : null}
+    <Link href="/guest-insights" asChild><Pressable accessibilityRole="button" style={{...card,gap:5,borderColor:theme.accent}}><Text style={{fontWeight:'900',fontSize:17,color:theme.accent}}>Open Guest Insights →</Text><Text style={{color:theme.muted}}>Explore guest sessions, return visits, acquisition, engaged actions, location choices and problems.</Text></Pressable></Link>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
       {metrics.map(([label, key, detail]) => <HealthCard key={key} label={label} value={count(key)} detail={detail} tone={data ? 'neutral' : 'warning'} />)}
     </View>
