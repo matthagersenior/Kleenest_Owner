@@ -7,7 +7,12 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { useOwnerTheme } from '@/services/theme';
 import { getOwnerAuthorization } from '@/services/ownerAuthorization';
 
-function TabIcon({symbol,color}:{symbol:string;color:ColorValue}){return <Text style={{fontSize:18,fontWeight:'900',color}}>{symbol}</Text>}
+// Android's fallback UI font does not contain the decorative Unicode symbols
+// previously used here. Prefer native platform emoji which render without a
+// bundled icon font (and therefore survive OTA/web updates reliably).
+function TabIcon({symbol,color}:{symbol:string;color:ColorValue}){
+  return <Text allowFontScaling={false} accessibilityElementsHidden style={{fontSize:21,lineHeight:25,textAlign:'center',color}}>{symbol}</Text>;
+}
 
 export default function RootLayout(){
  const theme=useOwnerTheme();
@@ -58,12 +63,12 @@ export default function RootLayout(){
       {!onAccount?<Pressable accessibilityRole="button" accessibilityLabel="Open Owner profile and themes" onPress={()=>router.push('/account')} style={{paddingHorizontal:10,paddingVertical:7,borderRadius:999,backgroundColor:theme.accentSoft,borderWidth:1,borderColor:theme.line}}><Text style={{fontWeight:'900',color:theme.accent}}>Profile</Text></Pressable>:null}
     </View>
   }}>
-    <Tabs.Screen name="index" options={{title:'Home',tabBarIcon:({color})=><TabIcon symbol="⌂" color={color}/>}}/>
-    <Tabs.Screen name="communications" options={{title:'Email',tabBarIcon:({color})=><TabIcon symbol="✉" color={color}/>}}/>
-    <Tabs.Screen name="control" options={{title:'Control',tabBarIcon:({color})=><TabIcon symbol="◈" color={color}/>}}/>
-    <Tabs.Screen name="pilots" options={{title:'Pilots',tabBarIcon:({color})=><TabIcon symbol="◆" color={color}/>}}/>
-    <Tabs.Screen name="developer" options={{title:'Developer',tabBarLabel:'Dev',tabBarIcon:({color})=><TabIcon symbol="⌘" color={color}/>}}/>
-    <Tabs.Screen name="operations" options={{title:'Operations',tabBarLabel:'Ops',tabBarIcon:({color})=><TabIcon symbol="⚙" color={color}/>}}/>
+    <Tabs.Screen name="index" options={{title:'Home',tabBarIcon:({color})=><TabIcon symbol="🏠" color={color}/>}}/>
+    <Tabs.Screen name="communications" options={{title:'Email',tabBarIcon:({color})=><TabIcon symbol="📧" color={color}/>}}/>
+    <Tabs.Screen name="control" options={{title:'Control',tabBarIcon:({color})=><TabIcon symbol="🎛️" color={color}/>}}/>
+    <Tabs.Screen name="pilots" options={{title:'Pilots',tabBarIcon:({color})=><TabIcon symbol="🧭" color={color}/>}}/>
+    <Tabs.Screen name="developer" options={{title:'Developer',tabBarLabel:'Dev',tabBarIcon:({color})=><TabIcon symbol="💻" color={color}/>}}/>
+    <Tabs.Screen name="operations" options={{title:'Operations',tabBarLabel:'Ops',tabBarIcon:({color})=><TabIcon symbol="⚙️" color={color}/>}}/>
 
     <Tabs.Screen name="mailboxes" options={{href:null,title:"Mailbox Management"}}/>
     <Tabs.Screen name="mail" options={{href:null,title:'Kleenest Mail',headerShown:false}}/>
