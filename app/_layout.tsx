@@ -83,6 +83,7 @@ export default function RootLayout(){
     <Tabs.Screen name="moderation" options={{href:null,title:'Trust & Moderation'}}/>
     <Tabs.Screen name="audit" options={{href:null,title:'System Audit'}}/>
     <Tabs.Screen name="capabilities" options={{href:null,title:'System Capabilities'}}/>
+    <Tabs.Screen name="ai-jobs" options={{href:null,title:'AI Jobs & Results'}}/>
     <Tabs.Screen name="intelligence" options={{href:null,title:'Intelligence Lab'}}/>
     <Tabs.Screen name="reports" options={{href:null,title:'Reporting'}}/>
     <Tabs.Screen name="email-notifications" options={{href:null,title:'Email Notifications'}}/>

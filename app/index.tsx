@@ -41,6 +41,7 @@ const primaryRoutes = [
 ] as const;
 
 const platformRoutes = [
+  ['/ai-jobs', 'AI Jobs & Results', 'Inspect AI investigations, recommendations, model readiness, and budget usage.'],
   ['/intelligence', 'Intelligence Lab', 'Inspect platform intelligence, recommendations and advanced operating signals.'],
   ['/reports', 'Reporting', 'Build and inspect platform reporting without leaving KleenestOS.'],
   ['/audit', 'System Audit', 'Run capability and activity audits.'],
