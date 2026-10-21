@@ -3,6 +3,7 @@ import { Pressable,ScrollView,Text,View } from 'react-native';
 import { OSHero,SectionHeader,useOSCardStyle } from '@/components/KleenestOS';
 import { useOwnerTheme } from '@/services/theme';
 const routes=[
+ ['/ai-jobs','AI Recommendations & Replies','Read findings, agree or reject, add comments, and ask AI for follow-up investigations.'],
  ['/access','People & Access','Users, roles, subscriptions and authority.'],
  ['/businesses','Businesses & Network','Locations, memberships, verification and entitlements.'],
  ['/progression','Economy & Progression','XP, levels, objectives, rewards and progression policy.'],
